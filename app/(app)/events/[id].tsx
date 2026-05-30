@@ -10,41 +10,43 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { LinearGradient } from 'expo-linear-gradient';
-import { ChevronLeft, MapPin, Calendar, Users, Edit, Plus, Trash2 } from "lucide-react-native";
-import { useEvent } from "@/hooks/useEvents";
-import { useSessionsByEvent } from "@/hooks/useSessions";
+import { LinearGradient } from "expo-linear-gradient";
+import { ChevronLeft, MapPin, Calendar, Users, Edit, Trash2, RefreshCw } from "lucide-react-native";
+import { useEvent, useDeleteEvent } from "@/hooks/useEvents";
+import { useMatchesByEvent } from "@/hooks/useMatches";
 import { useTeams } from "@/hooks/useTeams";
-import { useDeleteEvent, useUpdateEvent } from "@/hooks/useEvents";
+import { useStandings } from "@/hooks/useStandings";
+import { useGenerateSchedule } from "@/hooks/useSchedule";
+import { useQuickMatchResult } from "@/hooks/useQuickMatchResult";
 import { getSportMeta, getFormatMeta } from "@/constants/sports";
-import { SessionCard } from "@/components/SessionCard";
-import { SkeletonCard, Skeleton } from "@/components/ui/Skeleton";
-import { Team } from "@/types";
-import TeamModal from "@/components/TeamModal";
+import { MatchCard } from "@/components/MatchCard";
+import { MatchResultSheet } from "@/components/MatchResultSheet";
+import { StandingsTable } from "@/components/StandingsTable";
 import { colors, spacing, typography, radius, shadows, sportThemes } from "@/constants/theme";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { FormatBadge } from "@/components/ui/FormatBadge";
+import { MatchWithTeams } from "@/types";
+import { showSuccessToast, showErrorToast } from "@/utils/toast";
 
 export default function EventDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const [teamModalOpen, setTeamModalOpen] = useState(false);
-  const [editTeam, setEditTeam] = useState<Team | undefined>();
+  const [selectedMatch, setSelectedMatch] = useState<MatchWithTeams | null>(null);
+  const [showMatchSheet, setShowMatchSheet] = useState(false);
 
   const { data: event, isLoading: eventLoading, refetch } = useEvent(id);
-  const { data: sessions, isLoading: sessionsLoading } = useSessionsByEvent(id);
+  const { data: matches, isLoading: matchesLoading } = useMatchesByEvent(id);
   const { data: teams } = useTeams(id);
+  const { data: standings } = useStandings(id);
   const deleteEvent = useDeleteEvent();
-  const updateEvent = useUpdateEvent();
+  const regenerateSchedule = useGenerateSchedule();
+  const quickMarkResult = useQuickMatchResult();
 
   if (eventLoading) {
     return (
-      <SafeAreaView style={styles.screen} edges={['top']}>
+      <SafeAreaView style={styles.screen} edges={["top"]}>
         <View style={{ padding: spacing.lg }}>
-          <Skeleton height={200} rounded />
-          <View style={{ height: spacing.lg }} />
-          <SkeletonCard />
-          <SkeletonCard />
+          <Text style={styles.loadingText}>Loading...</Text>
         </View>
       </SafeAreaView>
     );
@@ -63,19 +65,19 @@ export default function EventDetail() {
   const isMultiDay = event.end_date && event.end_date !== event.start_date;
   const sportTheme = sportThemes[event.sport as keyof typeof sportThemes] || sportThemes.table_tennis;
 
-  // Group sessions by date
-  const sessionsByDate: Record<string, typeof sessions> = {};
-  if (sessions) {
-    for (const s of sessions) {
-      sessionsByDate[s.date] = sessionsByDate[s.date] ?? [];
-      sessionsByDate[s.date]!.push(s);
+  // Group matches by round
+  const matchesByRound: Record<string, typeof matches> = {};
+  if (matches) {
+    for (const match of matches) {
+      matchesByRound[match.round_label] = matchesByRound[match.round_label] ?? [];
+      matchesByRound[match.round_label]!.push(match);
     }
   }
 
-  const completedSessions = sessions?.filter((s) => s.status === "completed").length ?? 0;
+  const completedMatches = matches?.filter((m) => m.status === "completed").length ?? 0;
 
   async function handleDelete() {
-    Alert.alert("Delete Event", "This will remove the event and all its sessions. Continue?", [
+    Alert.alert("Delete Event", "This will remove the event and all its matches. Continue?", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Delete",
@@ -88,9 +90,64 @@ export default function EventDetail() {
     ]);
   }
 
+  async function handleRegenerateSchedule() {
+    console.log('handleRegenerateSchedule called');
+    Alert.alert(
+      "Regenerate Schedule",
+      "This will delete all existing matches and create a new schedule. Continue?",
+      [
+        { 
+          text: "Cancel", 
+          style: "cancel",
+          onPress: () => console.log('Regenerate cancelled')
+        },
+        {
+          text: "Regenerate",
+          style: "destructive",
+          onPress: async () => {
+            console.log('User confirmed regenerate, calling API...');
+            try {
+              console.log('Calling regenerateSchedule.mutateAsync with eventId:', id);
+              const result = await regenerateSchedule.mutateAsync(id);
+              console.log('Regenerate result:', result);
+              showSuccessToast("Schedule regenerated");
+            } catch (error: any) {
+              console.error('Regenerate error:', error);
+              console.error('Error details:', JSON.stringify(error, null, 2));
+              showErrorToast(`Failed to regenerate schedule: ${error.message || 'Unknown error'}`);
+            }
+          },
+        },
+      ]
+    );
+  }
+
+  function handleMatchPress(match: MatchWithTeams) {
+    setSelectedMatch(match);
+    setShowMatchSheet(true);
+  }
+
+  function handleMarkWin(match: MatchWithTeams, teamId: string) {
+    console.log('handleMarkWin called:', { matchId: match.id, teamId, eventId: event?.id });
+    if (!event) {
+      console.error('No event found');
+      return;
+    }
+    
+    console.log('Calling quickMarkResult.mutate');
+    quickMarkResult.mutate({
+      matchId: match.id,
+      eventId: event.id,
+      eventFormat: event.format,
+      winnerTeamId: teamId,
+      homeTeamId: match.home_team_id,
+      awayTeamId: match.away_team_id,
+    });
+  }
+
   return (
     <View style={styles.screen}>
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <SafeAreaView style={styles.safeArea} edges={["top"]}>
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
@@ -125,10 +182,10 @@ export default function EventDetail() {
             >
               <Text style={styles.heroEmoji}>{sport.emoji}</Text>
             </LinearGradient>
-            
+
             <View style={styles.heroContent}>
               <Text style={styles.heroTitle}>{event.name}</Text>
-              
+
               <View style={styles.badgeRow}>
                 <FormatBadge label={format.label} color={sportTheme.accent} size="sm" />
                 <StatusBadge status={event.status} size="sm" />
@@ -155,7 +212,7 @@ export default function EventDetail() {
                 <View style={styles.metaRow}>
                   <Users size={14} color={colors.textSecondary} strokeWidth={2.5} />
                   <Text style={styles.metaText}>
-                    {event.registered_count}/{event.max_participants} participants
+                    {event.max_participants} participants
                   </Text>
                 </View>
               </View>
@@ -165,11 +222,11 @@ export default function EventDetail() {
           {/* Stats Grid */}
           <View style={styles.statsGrid}>
             <View style={[styles.statCard, shadows.card]}>
-              <Text style={styles.statValue}>{sessions?.length ?? 0}</Text>
-              <Text style={styles.statLabel}>Sessions</Text>
+              <Text style={styles.statValue}>{matches?.length ?? 0}</Text>
+              <Text style={styles.statLabel}>Matches</Text>
             </View>
             <View style={[styles.statCard, shadows.card]}>
-              <Text style={styles.statValue}>{completedSessions}</Text>
+              <Text style={styles.statValue}>{completedMatches}</Text>
               <Text style={styles.statLabel}>Completed</Text>
             </View>
             <View style={[styles.statCard, shadows.card]}>
@@ -177,7 +234,7 @@ export default function EventDetail() {
               <Text style={styles.statLabel}>Teams</Text>
             </View>
             <View style={[styles.statCard, shadows.card]}>
-              <Text style={styles.statValue}>{event.registered_count}</Text>
+              <Text style={styles.statValue}>{event.max_participants}</Text>
               <Text style={styles.statLabel}>Players</Text>
             </View>
           </View>
@@ -201,12 +258,18 @@ export default function EventDetail() {
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.actionButton, styles.actionButtonPrimary, shadows.card]}
-              onPress={() => router.push({ pathname: "/(app)/sessions/create", params: { eventId: id } })}
+              style={[styles.actionButton, shadows.card]}
+              onPress={() => {
+                console.log('Regenerate button pressed!');
+                handleRegenerateSchedule();
+              }}
               activeOpacity={0.8}
+              disabled={regenerateSchedule.isPending}
             >
-              <Plus size={16} color={colors.textInverse} strokeWidth={2.5} />
-              <Text style={styles.actionButtonTextPrimary}>Session</Text>
+              <RefreshCw size={16} color={colors.accent} strokeWidth={2.5} />
+              <Text style={[styles.actionButtonText, { color: colors.accent }]}>
+                {regenerateSchedule.isPending ? "..." : "Regenerate"}
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -221,118 +284,106 @@ export default function EventDetail() {
           {/* Teams Section */}
           {event.player_type === "team" && (
             <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>
-                  Teams ({teams?.length ?? 0}/{event.max_participants ? Math.floor(event.max_participants / 11) : 10})
-                </Text>
-                <TouchableOpacity
-                  style={[styles.addTeamButton, shadows.card]}
-                  onPress={() => setTeamModalOpen(true)}
-                  activeOpacity={0.8}
-                >
-                  <Plus size={14} color={colors.primaryAccent} strokeWidth={2.5} />
-                  <Text style={styles.addTeamText}>Add Team</Text>
-                </TouchableOpacity>
-              </View>
+              <Text style={styles.sectionTitle}>Teams ({teams?.length ?? 0})</Text>
 
               {(teams?.length ?? 0) === 0 ? (
                 <View style={[styles.emptyCard, shadows.card]}>
-                  <Text style={styles.emptyText}>
-                    No teams added yet. Expected {event.max_participants ? Math.floor(event.max_participants / 11) : 10} teams with {event.max_participants ? Math.floor(event.max_participants / Math.floor(event.max_participants / 11)) : 11} players each.
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() => setTeamModalOpen(true)}
-                    style={styles.emptyAction}
-                  >
-                    <Text style={styles.emptyActionText}>Add first team →</Text>
-                  </TouchableOpacity>
+                  <Text style={styles.emptyText}>No teams yet</Text>
                 </View>
               ) : (
-                <View style={styles.teamsList}>
+                <View style={styles.teamsGrid}>
                   {teams?.map((team) => (
-                    <TouchableOpacity
+                    <View
                       key={team.id}
-                      onPress={() => {
-                        setEditTeam(team);
-                        setTeamModalOpen(true);
-                      }}
-                      activeOpacity={0.8}
                       style={[
-                        styles.teamChip,
+                        styles.teamCard,
                         shadows.card,
-                        { backgroundColor: `${team.colour_hex}15`, borderColor: `${team.colour_hex}40` }
+                        { backgroundColor: `${team.colour_hex}15`, borderColor: `${team.colour_hex}40` },
                       ]}
                     >
                       <View style={[styles.teamDot, { backgroundColor: team.colour_hex }]} />
-                      <View style={styles.teamChipContent}>
-                        <Text style={[styles.teamName, { color: team.colour_hex }]}>{team.name}</Text>
-                        {team.captain_name && (
-                          <Text style={styles.teamCaptain}>Captain: {team.captain_name}</Text>
-                        )}
+                      <View style={styles.teamCardContent}>
+                        <Text style={[styles.teamCardName, { color: team.colour_hex }]}>
+                          {team.name}
+                        </Text>
+                        <Text style={styles.teamCardPlayers}>
+                          {team.player_count} players
+                        </Text>
                       </View>
-                    </TouchableOpacity>
+                    </View>
                   ))}
                 </View>
               )}
             </View>
           )}
 
-          {/* Sessions Section */}
+          {/* Schedule Section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Sessions</Text>
-            {sessionsLoading ? (
-              <>
-                <SkeletonCard />
-                <SkeletonCard />
-              </>
-            ) : (sessions?.length ?? 0) === 0 ? (
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Schedule</Text>
+              {event.format === "tournament" && matches && matches.length > 0 && (
+                <Text style={styles.sectionHint}>
+                  Mark Win/Loss for each team
+                </Text>
+              )}
+            </View>
+
+            {matchesLoading ? (
+              <Text style={styles.loadingText}>Loading matches...</Text>
+            ) : (matches?.length ?? 0) === 0 ? (
               <View style={[styles.emptyCard, shadows.card]}>
-                <Text style={styles.emptyText}>No sessions yet</Text>
-                <TouchableOpacity
-                  onPress={() => router.push({ pathname: "/(app)/sessions/create", params: { eventId: id } })}
-                  style={styles.emptyAction}
-                >
-                  <Text style={styles.emptyActionText}>Add first session →</Text>
-                </TouchableOpacity>
+                <Text style={styles.emptyText}>No matches scheduled</Text>
               </View>
-            ) : isMultiDay ? (
-              Object.keys(sessionsByDate).sort().map((date) => (
-                <View key={date} style={styles.dateGroup}>
-                  <View style={[styles.dateBadge, { backgroundColor: `${sportTheme.accent}20` }]}>
-                    <Text style={[styles.dateBadgeText, { color: sportTheme.accent }]}>{date}</Text>
-                  </View>
-                  {sessionsByDate[date]!.map((s) => (
-                    <SessionCard
-                      key={s.id}
-                      session={s}
-                      onPress={() => router.push(`/(app)/sessions/${s.id}`)}
-                    />
-                  ))}
-                </View>
-              ))
             ) : (
-              sessions?.map((s) => (
-                <SessionCard
-                  key={s.id}
-                  session={s}
-                  onPress={() => router.push(`/(app)/sessions/${s.id}`)}
-                />
-              ))
+              Object.keys(matchesByRound)
+                .sort((a, b) => {
+                  // Sort rounds by round_number
+                  const matchA = matchesByRound[a]![0];
+                  const matchB = matchesByRound[b]![0];
+                  return matchA.round_number - matchB.round_number;
+                })
+                .map((roundLabel) => (
+                  <View key={roundLabel} style={styles.roundGroup}>
+                    <View style={[styles.roundBadge, { backgroundColor: `${sportTheme.accent}20` }]}>
+                      <Text style={[styles.roundBadgeText, { color: sportTheme.accent }]}>
+                        {roundLabel}
+                      </Text>
+                    </View>
+                    {matchesByRound[roundLabel]!.map((match) => (
+                      <MatchCard
+                        key={match.id}
+                        match={match}
+                        format={event.format}
+                        onPress={event.format === "league" ? () => handleMatchPress(match) : undefined}
+                        onMarkWin={event.format === "tournament" ? (teamId) => handleMarkWin(match, teamId) : undefined}
+                      />
+                    ))}
+                  </View>
+                ))
             )}
           </View>
 
-          {/* Bottom padding */}
+          {/* Standings Section (League only) */}
+          {event.format === "league" && (
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Standings</Text>
+              <StandingsTable standings={standings || []} />
+            </View>
+          )}
+
           <View style={{ height: 100 }} />
         </ScrollView>
       </SafeAreaView>
 
-      <TeamModal
-        visible={teamModalOpen}
-        onClose={() => { setTeamModalOpen(false); setEditTeam(undefined); }}
-        eventId={id}
-        teams={teams ?? []}
-        editTeam={editTeam}
-        onEditTeam={setEditTeam}
+      {/* Match Result Sheet */}
+      <MatchResultSheet
+        visible={showMatchSheet}
+        match={selectedMatch}
+        format={event.format}
+        onClose={() => {
+          setShowMatchSheet(false);
+          setSelectedMatch(null);
+        }}
       />
     </View>
   );
@@ -356,8 +407,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: spacing.xs,
   },
   backText: {
@@ -369,13 +420,13 @@ const styles = StyleSheet.create({
     borderRadius: radius.xxl,
     borderWidth: 1,
     borderColor: colors.border,
-    overflow: 'hidden',
+    overflow: "hidden",
     marginBottom: spacing.lg,
   },
   heroGradient: {
     height: 80,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   heroEmoji: {
     fontSize: 40,
@@ -389,8 +440,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   badgeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.sm,
     marginBottom: spacing.lg,
   },
@@ -405,14 +456,14 @@ const styles = StyleSheet.create({
   teamBadgeText: {
     ...typography.small,
     color: colors.textSecondary,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   metaList: {
     gap: spacing.sm,
   },
   metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: spacing.sm,
   },
   metaText: {
@@ -420,7 +471,7 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   statsGrid: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: spacing.md,
     marginBottom: spacing.lg,
   },
@@ -431,7 +482,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.md,
-    alignItems: 'center',
+    alignItems: "center",
   },
   statValue: {
     ...typography.stat,
@@ -456,7 +507,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   actionRow: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: spacing.md,
     marginBottom: spacing.xl,
   },
@@ -467,14 +518,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: spacing.xs,
-  },
-  actionButtonPrimary: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
   },
   actionButtonDanger: {
     flex: 0,
@@ -484,68 +531,68 @@ const styles = StyleSheet.create({
     ...typography.bodyBold,
     color: colors.textPrimary,
   },
-  actionButtonTextPrimary: {
-    ...typography.bodyBold,
-    color: colors.textInverse,
-  },
   section: {
     marginBottom: spacing.xl,
   },
   sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: spacing.md,
   },
   sectionTitle: {
     ...typography.heading,
     color: colors.textPrimary,
   },
-  addTeamButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    backgroundColor: colors.accentSoft,
-    borderRadius: radius.pill,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-  },
-  addTeamText: {
+  sectionHint: {
     ...typography.small,
-    color: colors.accentInk,
-    fontWeight: '700',
+    color: colors.textTertiary,
+    fontStyle: "italic",
   },
-  teamsList: {
-    gap: spacing.sm,
+  teamsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: spacing.md,
   },
-  teamChip: {
+  teamCard: {
+    width: "48%",
     borderRadius: radius.lg,
     borderWidth: 1,
     padding: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
   },
   teamDot: {
     width: 12,
     height: 12,
     borderRadius: 6,
   },
-  teamChipContent: {
+  teamCardContent: {
     flex: 1,
   },
-  teamName: {
+  teamCardName: {
     ...typography.bodyBold,
-    fontSize: 15,
+    fontSize: 14,
     marginBottom: 2,
   },
-  teamCaptain: {
+  teamCardPlayers: {
     ...typography.small,
     color: colors.textTertiary,
   },
-  teamDivider: {
-    ...typography.caption,
-    color: colors.textTertiary,
+  roundGroup: {
+    marginBottom: spacing.lg,
+  },
+  roundBadge: {
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    alignSelf: "flex-start",
+    marginBottom: spacing.sm,
+  },
+  roundBadgeText: {
+    ...typography.small,
+    fontWeight: "700",
   },
   emptyCard: {
     backgroundColor: colors.cardSurface,
@@ -553,32 +600,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     padding: spacing.xl,
-    alignItems: 'center',
+    alignItems: "center",
   },
   emptyText: {
     ...typography.body,
     color: colors.textSecondary,
-    textAlign: 'center',
+    textAlign: "center",
   },
-  emptyAction: {
-    marginTop: spacing.md,
-  },
-  emptyActionText: {
-    ...typography.bodyBold,
-    color: colors.primaryAccent,
-  },
-  dateGroup: {
-    marginBottom: spacing.lg,
-  },
-  dateBadge: {
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    alignSelf: 'flex-start',
-    marginBottom: spacing.sm,
-  },
-  dateBadgeText: {
-    ...typography.small,
-    fontWeight: '700',
+  loadingText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    textAlign: "center",
+    padding: spacing.xl,
   },
 });

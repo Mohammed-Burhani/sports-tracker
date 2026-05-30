@@ -10,11 +10,7 @@ export type Sport =
 
 export type EventFormat =
   | "tournament"
-  | "league"
-  | "open_play"
-  | "training"
-  | "friendly"
-  | "championship";
+  | "league";
 
 export type PlayerType = "individual" | "team";
 
@@ -25,7 +21,7 @@ export type EventStatus =
   | "completed"
   | "cancelled";
 
-export type SessionStatus =
+export type MatchStatus =
   | "scheduled"
   | "ongoing"
   | "completed"
@@ -33,54 +29,21 @@ export type SessionStatus =
 
 export type UserRole = "admin" | "staff" | "viewer";
 
-export type ParticipantResult = "win" | "loss" | "draw" | "dnf";
-
-export type EntityType = "player" | "team";
-
 // ─── Format Configs ───────────────────────────────────────────────────────────
 
 export interface TournamentConfig {
-  bracket_type: "single" | "double";
-  seeded: boolean;
-  total_rounds: number;
-  rounds_completed: number;
+  tournament_has_third_place: boolean;
+  tournament_total_rounds: number;
 }
 
 export interface LeagueConfig {
-  points_win: number;
-  points_draw: number;
-  points_loss: number;
-  number_of_legs: number;
+  league_points_win: number;
+  league_points_draw: number;
+  league_points_loss: number;
+  league_legs: number;
 }
 
-export interface OpenPlayConfig {
-  court_rotation_interval_minutes: number;
-  simultaneous_courts: number;
-}
-
-export interface TrainingConfig {
-  coach_name: string;
-  drills: string[];
-}
-
-export interface FriendlyConfig {
-  sets_or_periods: number;
-  scoring_format: string;
-}
-
-export interface ChampionshipConfig {
-  qualifying_rounds: number;
-  has_semi_finals: boolean;
-  has_third_place_match: boolean;
-}
-
-export type FormatConfig =
-  | TournamentConfig
-  | LeagueConfig
-  | OpenPlayConfig
-  | TrainingConfig
-  | FriendlyConfig
-  | ChampionshipConfig;
+export type FormatConfig = TournamentConfig | LeagueConfig;
 
 // ─── Database Types ───────────────────────────────────────────────────────────
 
@@ -119,59 +82,81 @@ export interface Event {
   end_date: string | null;
   duration_hours: number | null;
   registered_count: number;
+  courts_count: number;
+  teams_count: number;
+  players_per_team: number | null;
   created_at: string;
   updated_at: string;
 }
 
-export interface Session {
+export interface Court {
   id: string;
   event_id: string;
+  organization_id: string;
   name: string;
-  session_number: number;
-  status: SessionStatus;
-  date: string;
-  start_time: string;
-  end_time: string | null;
-  duration_hours: number;
-  venue_area: string | null;
-  max_participants: number | null;
-  notes: string | null;
-  format_config: FormatConfig | null;
+  sort_order: number;
   created_at: string;
-  updated_at: string;
 }
 
 export interface Team {
   id: string;
   event_id: string;
+  organization_id: string;
   name: string;
+  player_count: number;
   colour_hex: string;
-  logo_url: string | null;
-  captain_name: string | null;
-  notes: string | null;
   created_at: string;
 }
 
-export interface SessionParticipant {
+export interface Match {
   id: string;
-  session_id: string;
-  entity_type: EntityType;
-  entity_id: string;
-  checked_in: boolean;
-  check_in_time: string | null;
-  position: number | null;
-  score: string | null;
-  result: ParticipantResult | null;
+  event_id: string;
+  organization_id: string;
+  round_number: number;
+  round_label: string;
+  match_number_in_round: number;
+  home_team_id: string | null;
+  away_team_id: string | null;
+  court_id: string | null;
+  scheduled_date: string;
+  scheduled_time: string | null;
+  status: MatchStatus;
+  home_score: number | null;
+  away_score: number | null;
+  winner_team_id: string | null;
+  is_draw: boolean;
   notes: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
-export interface PlayerCount {
+export interface Standing {
   id: string;
-  session_id: string;
-  expected_count: number;
-  actual_count: number;
-  checked_in_count: number;
+  event_id: string;
+  team_id: string;
+  played: number;
+  won: number;
+  drawn: number;
+  lost: number;
+  goals_for: number;
+  goals_against: number;
+  goal_difference: number;
+  points: number;
+  position: number;
   updated_at: string;
+}
+
+export interface EventFormatConfig {
+  id: string;
+  event_id: string;
+  format: EventFormat;
+  tournament_has_third_place?: boolean;
+  tournament_total_rounds?: number;
+  league_legs?: number;
+  league_points_win?: number;
+  league_points_draw?: number;
+  league_points_loss?: number;
+  created_at: string;
 }
 
 // ─── App-level helpers ────────────────────────────────────────────────────────
@@ -196,31 +181,29 @@ export interface FormatMeta {
 
 // ─── Extended / joined types ──────────────────────────────────────────────────
 
-export interface EventWithSessions extends Event {
-  sessions: Session[];
+export interface EventWithDetails extends Event {
   teams: Team[];
+  matches: Match[];
+  courts: Court[];
+  format_config: EventFormatConfig | null;
 }
 
-export interface SessionWithEvent extends Session {
+export interface MatchWithTeams extends Match {
+  home_team: Team | null;
+  away_team: Team | null;
+  court: Court | null;
   event: Event;
-  player_counts: PlayerCount | null;
+}
+
+export interface StandingWithTeam extends Standing {
+  team: Team;
 }
 
 export interface DashboardStats {
   eventsThisMonth: number;
-  sessionsToday: number;
-  totalRegisteredParticipants: number;
+  matchesToday: number;
+  matchesThisWeek: number;
+  activeEvents: number;
   upcomingEvents: Event[];
-  ongoingEvents: Event[];
-  recentActivity: ActivityItem[];
-}
-
-export interface ActivityItem {
-  id: string;
-  session_id: string;
-  session_name: string;
-  event_name: string;
-  sport: Sport;
-  status: SessionStatus;
-  changed_at: string;
+  recentMatches: MatchWithTeams[];
 }

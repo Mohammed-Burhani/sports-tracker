@@ -16,6 +16,8 @@ import { ChevronLeft } from "lucide-react-native";
 import { Plus, Trash2 } from "lucide-react-native";
 import { useCreateEvent } from "@/hooks/useEvents";
 import { useAuth } from "@/hooks/useAuth";
+import { useGenerateSchedule } from "@/hooks/useSchedule";
+import { ScheduleGenerationModal } from "@/components/ScheduleGenerationModal";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { SPORTS, FORMATS } from "@/constants/sports";
@@ -29,7 +31,7 @@ const schema = z.object({
   format: z.string().min(1, "Select a format"),
   player_type: z.enum(["individual", "team"]),
   max_participants: z.coerce.number().min(2).max(1000),
-  num_teams: z.coerce.number().min(1).max(100).optional(),
+  num_teams: z.coerce.number().min(2).max(10).optional(),
   players_per_team: z.coerce.number().min(1).max(50).optional(),
   venue: z.string().optional(),
   start_date: z.string().min(4, "Start date required"),
@@ -52,9 +54,12 @@ export default function CreateEvent() {
   const router = useRouter();
   const { profile } = useAuth();
   const createEvent = useCreateEvent();
+  const generateSchedule = useGenerateSchedule();
   const [step, setStep] = useState(0);
   const [multiDay, setMultiDay] = useState(false);
   const [courts, setCourts] = useState<CourtInput[]>([{ id: "1", name: "" }]);
+  const [createdEventId, setCreatedEventId] = useState<string | null>(null);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
 
   // Debug logging
   useEffect(() => {
@@ -159,6 +164,15 @@ export default function CreateEvent() {
     console.log("Creating event with organization_id:", profile.organization_id);
     
     try {
+      // Validate courts for team events
+      if (data.player_type === "team") {
+        const validCourts = courts.filter(c => c.name.trim());
+        if (validCourts.length === 0) {
+          showErrorToast("At least one court is required");
+          return;
+        }
+      }
+
       const payload = {
         organization_id: profile.organization_id,
         name: data.name,
@@ -172,6 +186,10 @@ export default function CreateEvent() {
         duration_hours: data.duration_hours || null,
         status: data.status as EventStatus,
         description: data.description || null,
+        teams_count: data.player_type === "team" ? (data.num_teams || 2) : 0,
+        players_per_team: data.player_type === "team" ? (data.players_per_team || 11) : null,
+        courts_count: data.player_type === "team" ? courts.filter(c => c.name.trim()).length : 0,
+        court_names: data.player_type === "team" ? courts.filter(c => c.name.trim()).map(c => c.name.trim()) : null,
       };
       
       console.log("Event payload:", payload);
@@ -179,12 +197,47 @@ export default function CreateEvent() {
       const result = await createEvent.mutateAsync(payload);
       console.log("Event created successfully:", result);
       
-      showSuccessToast("Event created successfully!");
-      router.replace("/(app)/(tabs)/events");
+      setCreatedEventId(result.id);
+      
+      // For team events, trigger schedule generation
+      if (data.player_type === "team") {
+        setShowScheduleModal(true);
+        
+        try {
+          await generateSchedule.mutateAsync(result.id);
+          
+          // Show success state briefly, then navigate
+          setTimeout(() => {
+            setShowScheduleModal(false);
+            showSuccessToast("Event and schedule created!");
+            router.replace(`/(app)/events/${result.id}`);
+          }, 1500);
+        } catch (scheduleError) {
+          console.error("Schedule generation failed:", scheduleError);
+          // Modal will show error state with retry option
+        }
+      } else {
+        // Individual events don't need schedule generation
+        showSuccessToast("Event created successfully!");
+        router.replace("/(app)/(tabs)/events");
+      }
     } catch (error) {
       console.error("Error creating event:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to create event";
       showErrorToast(errorMessage);
+    }
+  }
+
+  function handleScheduleRetry() {
+    if (createdEventId) {
+      generateSchedule.mutate(createdEventId);
+    }
+  }
+
+  function handleScheduleClose() {
+    setShowScheduleModal(false);
+    if (createdEventId) {
+      router.replace(`/(app)/events/${createdEventId}`);
     }
   }
 
@@ -632,6 +685,19 @@ export default function CreateEvent() {
           </View>
         )}
       </ScrollView>
+
+      {/* Schedule Generation Modal */}
+      <ScheduleGenerationModal
+        visible={showScheduleModal}
+        sportEmoji={selectedSport?.emoji || "🏆"}
+        isLoading={generateSchedule.isPending}
+        isSuccess={generateSchedule.isSuccess}
+        isError={generateSchedule.isError}
+        error={generateSchedule.error?.message}
+        result={generateSchedule.data}
+        onRetry={handleScheduleRetry}
+        onClose={handleScheduleClose}
+      />
     </SafeAreaView>
   );
 }

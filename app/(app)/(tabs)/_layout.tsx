@@ -1,6 +1,6 @@
 import React from "react";
 import { Tabs } from "expo-router";
-import { LayoutDashboard, Trophy, Timer, Users, Settings } from "lucide-react-native";
+import { LayoutDashboard, Trophy, Target, BarChart3, Settings } from "lucide-react-native";
 import { FloatingTabBar } from "@/components/FloatingTabBar";
 
 export default function TabsLayout() {
@@ -27,17 +27,17 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
-        name="sessions"
+        name="matches"
         options={{
-          title: "Sessions",
-          tabBarIcon: ({ color, size }) => <Timer color={color} size={size} strokeWidth={2.2} />,
+          title: "Matches",
+          tabBarIcon: ({ color, size }) => <Target color={color} size={size} strokeWidth={2.2} />,
         }}
       />
       <Tabs.Screen
-        name="players"
+        name="standings"
         options={{
-          title: "Players",
-          tabBarIcon: ({ color, size }) => <Users color={color} size={size} strokeWidth={2.2} />,
+          title: "Standings",
+          tabBarIcon: ({ color, size }) => <BarChart3 color={color} size={size} strokeWidth={2.2} />,
         }}
       />
       <Tabs.Screen

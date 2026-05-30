@@ -55,8 +55,8 @@ export default function EditEvent() {
           status: event.status as any,
           description: event.description ?? "",
           max_participants: event.max_participants,
-          num_teams: 2,
-          players_per_team: Math.floor(event.max_participants / 2),
+          num_teams: event.teams_count || 2,
+          players_per_team: event.players_per_team || 11,
           player_type: event.player_type,
         }
       : undefined,
@@ -129,7 +129,7 @@ export default function EditEvent() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Sport badge (read-only) */}
+        {/* Sport and Format badge (read-only) */}
         {selectedSport && (
           <View
             style={[
@@ -145,6 +145,51 @@ export default function EditEvent() {
           </View>
         )}
 
+        {/* Player Type badge (read-only) */}
+        {event && (
+          <View style={styles.readOnlyBadge}>
+            <Text style={styles.readOnlyLabel}>Player Type</Text>
+            <Text style={styles.readOnlyValue}>
+              {event.player_type === "individual" ? "Individual" : "Team"}
+            </Text>
+          </View>
+        )}
+
+        {/* Team info (read-only for team events) */}
+        {event && event.player_type === "team" && (
+          <>
+            <View style={styles.readOnlyBadge}>
+              <Text style={styles.readOnlyLabel}>Number of Teams</Text>
+              <Text style={styles.readOnlyValue}>{event.teams_count || 0}</Text>
+            </View>
+
+            <View style={styles.readOnlyBadge}>
+              <Text style={styles.readOnlyLabel}>Players per Team</Text>
+              <Text style={styles.readOnlyValue}>{event.players_per_team || 0}</Text>
+            </View>
+
+            <View style={styles.infoBox}>
+              <Text style={styles.infoText}>
+                Total participants: {event.max_participants}
+              </Text>
+              <Text style={styles.infoSubtext}>
+                ({event.teams_count || 0} teams × {event.players_per_team || 0} players)
+              </Text>
+              <Text style={[styles.infoSubtext, { marginTop: spacing.xs }]}>
+                ⓘ Team configuration cannot be changed after event creation
+              </Text>
+            </View>
+          </>
+        )}
+
+        {/* Max Participants (read-only for individual events) */}
+        {event && event.player_type === "individual" && (
+          <View style={styles.readOnlyBadge}>
+            <Text style={styles.readOnlyLabel}>Max Participants</Text>
+            <Text style={styles.readOnlyValue}>{event.max_participants}</Text>
+          </View>
+        )}
+
         <Controller
           control={control}
           name="name"
@@ -157,100 +202,6 @@ export default function EditEvent() {
             />
           )}
         />
-
-        {selectedSport && selectedSport.supportsIndividual && selectedSport.supportsTeam && (
-          <>
-            <Text style={styles.sectionLabel}>Player Type</Text>
-            <View style={styles.playerTypeRow}>
-              {(["individual", "team"] as PlayerType[]).map((pt) => (
-                <Pressable
-                  key={pt}
-                  onPress={() => {
-                    setValue("player_type", pt);
-                    if (pt === "team") {
-                      setValue("num_teams", 2);
-                      setValue("players_per_team", 11);
-                      setValue("max_participants", 22);
-                    }
-                  }}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: values.player_type === pt }}
-                  style={({ pressed }) => [
-                    styles.playerTypeButton,
-                    values.player_type === pt && styles.playerTypeButtonSelected,
-                    { opacity: pressed ? 0.8 : 1 },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.playerTypeLabel,
-                      values.player_type === pt && styles.playerTypeLabelSelected,
-                    ]}
-                  >
-                    {pt === "individual" ? "Individual" : "Team"}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </>
-        )}
-
-        {values.player_type === "individual" ? (
-          <Controller
-            control={control}
-            name="max_participants"
-            render={({ field: { onChange, value } }) => (
-              <Input
-                label="Max Participants"
-                value={String(value)}
-                onChangeText={onChange}
-                keyboardType="numeric"
-                error={errors.max_participants?.message}
-              />
-            )}
-          />
-        ) : (
-          <>
-            <Controller
-              control={control}
-              name="num_teams"
-              render={({ field: { onChange, value } }) => (
-                <Input
-                  label="Number of Teams"
-                  value={String(value || "")}
-                  onChangeText={onChange}
-                  keyboardType="numeric"
-                  error={errors.num_teams?.message}
-                  hint="How many teams will compete"
-                />
-              )}
-            />
-
-            <Controller
-              control={control}
-              name="players_per_team"
-              render={({ field: { onChange, value } }) => (
-                <Input
-                  label="Players per Team"
-                  value={String(value || "")}
-                  onChangeText={onChange}
-                  keyboardType="numeric"
-                  error={errors.players_per_team?.message}
-                  hint="Number of players in each team"
-                />
-              )}
-            />
-
-            <View style={styles.infoBox}>
-              <Text style={styles.infoText}>
-                Total participants: {values.max_participants || 0}
-              </Text>
-              <Text style={styles.infoSubtext}>
-                ({values.num_teams || 0} teams × {values.players_per_team || 0} players)
-              </Text>
-            </View>
-          </>
-        )}
 
         <Controller
           control={control}
@@ -422,6 +373,25 @@ const styles = StyleSheet.create({
   sportFormat: {
     ...typography.small,
     color: colors.textTertiary,
+  },
+  readOnlyBadge: {
+    backgroundColor: colors.cardSurface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+  },
+  readOnlyLabel: {
+    ...typography.small,
+    color: colors.textTertiary,
+    marginBottom: 4,
+    fontWeight: "600",
+  },
+  readOnlyValue: {
+    ...typography.bodyBold,
+    color: colors.textPrimary,
+    fontSize: 16,
   },
   sectionLabel: {
     ...typography.caption,

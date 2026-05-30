@@ -10,12 +10,22 @@ export const queryKeys = {
     detail: (id: string) => ["events", "detail", id] as const,
   },
 
-  // Sessions
-  sessions: {
-    all: ["sessions"] as const,
-    list: (filters?: object) => ["sessions", "list", filters] as const,
-    byEvent: (eventId: string) => ["sessions", "event", eventId] as const,
-    detail: (id: string) => ["sessions", "detail", id] as const,
+  // Matches
+  matches: {
+    all: ["matches"] as const,
+    list: (filters?: object) => ["matches", "list", filters] as const,
+    byEvent: (eventId: string) => ["matches", "event", eventId] as const,
+    detail: (id: string) => ["matches", "detail", id] as const,
+  },
+
+  // Standings
+  standings: {
+    byEvent: (eventId: string) => ["standings", "event", eventId] as const,
+  },
+
+  // Courts
+  courts: {
+    byEvent: (eventId: string) => ["courts", "event", eventId] as const,
   },
 
   // Teams
@@ -23,10 +33,9 @@ export const queryKeys = {
     byEvent: (eventId: string) => ["teams", "event", eventId] as const,
   },
 
-  // Player counts
-  playerCounts: {
-    bySession: (sessionId: string) => ["playerCounts", sessionId] as const,
-    summary: ["playerCounts", "summary"] as const,
+  // Schedule generation
+  schedule: {
+    generation: (eventId: string) => ["schedule", "generation", eventId] as const,
   },
 
   // Dashboard

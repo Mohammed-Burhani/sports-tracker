@@ -74,12 +74,12 @@ export const FORMATS: FormatMeta[] = [
   {
     format: "tournament",
     label: "Tournament",
-    description: "Knockout bracket — single or double elimination.",
+    description: "Knockout bracket — single elimination with optional third-place match.",
   },
   {
     format: "league",
     label: "League",
-    description: "Round-robin standings across multiple legs.",
+    description: "Round-robin standings with points system.",
   },
 ];
 
