@@ -102,13 +102,13 @@ export default function SignIn() {
             )}
           />
 
-          <TouchableOpacity
+          {/* <TouchableOpacity
             style={styles.forgotButton}
             onPress={() => router.push("/(auth)/forgot-password")}
             activeOpacity={0.7}
           >
             <Text style={styles.forgotText}>Forgot password?</Text>
-          </TouchableOpacity>
+          </TouchableOpacity> */}
 
           <Button
             label="Sign in"
@@ -118,7 +118,7 @@ export default function SignIn() {
           />
         </View>
 
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={styles.signUpContainer}
           onPress={() => router.push("/(auth)/sign-up")}
           activeOpacity={0.7}
@@ -127,7 +127,7 @@ export default function SignIn() {
             Don't have an account?{" "}
             <Text style={styles.signUpLink}>Sign up</Text>
           </Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </ScrollView>
     </KeyboardAvoidingView>
   );
