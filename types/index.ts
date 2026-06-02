@@ -108,6 +108,24 @@ export interface Team {
   created_at: string;
 }
 
+export interface Member {
+  id: string;
+  event_id: string;
+  organization_id: string;
+  name: string;
+  age: number;
+  team_id: string | null;
+  created_at: string;
+}
+
+export interface MemberWithTeam extends Member {
+  team?: {
+    id: string;
+    name: string;
+    colour_hex: string;
+  } | null;
+}
+
 export interface Match {
   id: string;
   event_id: string;
