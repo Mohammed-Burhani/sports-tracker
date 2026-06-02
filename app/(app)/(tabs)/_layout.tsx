@@ -47,6 +47,7 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, size }) => <Settings color={color} size={size} strokeWidth={2.2} />,
         }}
       />
+   
     </Tabs>
   );
 }

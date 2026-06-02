@@ -22,6 +22,7 @@ import { getSportMeta } from "@/constants/sports";
 import { ActivityItem, Event } from "@/types";
 import { colors, spacing, typography, radius, shadows, sportThemes } from "@/constants/theme";
 import { StatusBadge } from "@/components/ui/StatusBadge";
+import { Plus } from "lucide-react-native";
 
 export default function Dashboard() {
   const router = useRouter();
@@ -63,15 +64,22 @@ export default function Dashboard() {
               loading={isLoading}
               emoji="🏆"
             />
-            <StatCard
+            {/* <StatCard
               label="Sessions today"
               value={data?.sessionsToday ?? 0}
               accent={sportThemes.table_tennis.accent}
               loading={isLoading}
               emoji="⏱️"
+            /> */}
+            <StatCard
+              label="Upcoming (7 days)"
+              value={data?.upcomingEvents?.length ?? 0}
+              accent={sportThemes.badminton.accent}
+              loading={isLoading}
+              emoji="📅"
             />
           </View>
-          <View style={styles.statsGrid}>
+          {/* <View style={styles.statsGrid}>
             <StatCard
               label="Active participants"
               value={data?.totalRegisteredParticipants ?? 0}
@@ -86,7 +94,7 @@ export default function Dashboard() {
               loading={isLoading}
               emoji="📅"
             />
-          </View>
+          </View> */}
 
           {/* Quick Actions */}
           <View style={styles.quickActions}>
@@ -101,11 +109,11 @@ export default function Dashboard() {
                 end={{ x: 1, y: 0 }}
                 style={styles.actionGradient}
               >
-                <Text style={styles.actionEmoji}>🏆</Text>
+                <Plus size={28} color="#FFFFFF" strokeWidth={3} style={{ marginBottom: spacing.xs }} />
                 <Text style={styles.actionLabel}>New Event</Text>
               </LinearGradient>
             </TouchableOpacity>
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={styles.actionButton}
               onPress={() => router.push("/(app)/sessions/create")}
               activeOpacity={0.8}
@@ -119,7 +127,7 @@ export default function Dashboard() {
                 <Text style={styles.actionEmoji}>⏱️</Text>
                 <Text style={styles.actionLabel}>Log Session</Text>
               </LinearGradient>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
 
           {/* Ongoing Events */}
@@ -178,7 +186,7 @@ export default function Dashboard() {
           </View>
 
           {/* Recent Activity */}
-          <View style={styles.section}>
+          {/* <View style={styles.section}>
             <SectionHeader label="Recent Activity" emoji="⚡" />
             {isLoading ? (
               <SkeletonCard />
@@ -206,7 +214,7 @@ export default function Dashboard() {
                 );
               })
             )}
-          </View>
+          </View> */}
 
           {/* Bottom padding for floating tab bar */}
           <View style={{ height: 100 }} />
@@ -260,7 +268,7 @@ const styles = StyleSheet.create({
   },
   actionLabel: {
     ...typography.caption,
-    color: colors.textPrimary,
+    color: '#FFFFFF',
     fontWeight: '700',
   },
   section: {
