@@ -78,6 +78,7 @@ serve(async (req) => {
       start_date,
       end_date,
       duration_hours,
+      groups_count,
     } = event;
 
     let teamsCreated = 0;
@@ -157,6 +158,75 @@ serve(async (req) => {
         );
         matches.push(...leagueMatches);
         roundsCreated = rounds;
+      } else if (format === "championship") {
+        // Championship: Create groups first, then generate matches
+        
+        if (!groups_count || groups_count < 2) {
+          throw new Error("Championship requires at least 2 groups");
+        }
+
+        const supabaseAdmin = createClient(
+          Deno.env.get("SUPABASE_URL") ?? "",
+          Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
+        );
+
+        // Create groups
+        const groupNames = Array.from({ length: groups_count }, (_, i) => `Group ${String.fromCharCode(65 + i)}`);
+        
+        const groupsToInsert = groupNames.map((name, index) => ({
+          event_id,
+          organization_id,
+          name,
+          sort_order: index,
+        }));
+
+        const { data: createdGroups, error: groupsError } = await supabaseAdmin
+          .from("groups")
+          .insert(groupsToInsert)
+          .select();
+
+        if (groupsError) throw new Error(`Groups creation failed: ${groupsError.message}`);
+
+        // Distribute teams across groups (round-robin)
+        const teamsPerGroup = Math.floor(teams!.length / groups_count);
+        
+        for (let i = 0; i < teams!.length; i++) {
+          const groupIndex = i % groups_count;
+          const group = createdGroups[groupIndex];
+          
+          await supabaseAdmin
+            .from("teams")
+            .update({ group_id: group.id })
+            .eq("id", teams![i].id);
+        }
+
+        // Fetch groups with assigned teams
+        const groupsWithTeams = await Promise.all(
+          createdGroups.map(async (group) => {
+            const { data: groupTeams } = await supabaseAdmin
+              .from("teams")
+              .select("*")
+              .eq("group_id", group.id);
+
+            return {
+              ...group,
+              teams: groupTeams || [],
+            };
+          })
+        );
+
+        const { matches: championshipMatches, rounds } = await generateChampionshipMatches(
+          groupsWithTeams,
+          courts!,
+          start_date,
+          end_date,
+          duration_hours,
+          event_id,
+          organization_id,
+          supabaseClient
+        );
+        matches.push(...championshipMatches);
+        roundsCreated = rounds;
       }
 
       if (matches.length > 0) {
@@ -200,6 +270,44 @@ serve(async (req) => {
         }));
 
         await supabaseClient.from("standings").insert(standingsToInsert);
+      } else if (format === "championship") {
+        formatConfig.championship_groups_count = 0; // Will be updated based on created groups
+        formatConfig.championship_teams_advance_per_group = 2;
+        formatConfig.championship_has_playoffs = true;
+
+        // Initialize standings for each group
+        const { data: groups } = await supabaseClient
+          .from("groups")
+          .select("id")
+          .eq("event_id", event_id);
+
+        if (groups) {
+          for (const group of groups) {
+            const { data: groupTeams } = await supabaseClient
+              .from("teams")
+              .select("id")
+              .eq("group_id", group.id);
+
+            if (groupTeams) {
+              const standingsToInsert = groupTeams.map((team: any) => ({
+                event_id,
+                team_id: team.id,
+                group_id: group.id,
+                played: 0,
+                won: 0,
+                drawn: 0,
+                lost: 0,
+                goals_for: 0,
+                goals_against: 0,
+                goal_difference: 0,
+                points: 0,
+                position: 0,
+              }));
+
+              await supabaseClient.from("standing").insert(standingsToInsert);
+            }
+          }
+        }
       }
 
       const { error: configError } = await supabaseClient
@@ -443,4 +551,142 @@ function generateLeagueMatches(
   });
 
   return { matches, rounds: numRounds };
+}
+
+// ─── Championship Match Generation ───────────────────────────────────────────
+
+async function generateChampionshipMatches(
+  groups: any[],
+  courts: any[],
+  startDate: string,
+  endDate: string | null,
+  durationHours: number | null,
+  eventId: string,
+  organizationId: string,
+  supabaseClient: any
+) {
+  const matches: any[] = [];
+  let courtIndex = 0;
+  let totalRounds = 0;
+
+  // ─── Phase 1: Group Stage (Round-Robin within each group) ────────────────
+
+  for (const group of groups) {
+    const groupTeams = group.teams;
+    
+    if (groupTeams.length < 2) continue;
+
+    // Generate round-robin for this group
+    const groupMatches: any[][] = [];
+    const teamsCopy = [...groupTeams];
+
+    // Add bye if odd number of teams
+    if (teamsCopy.length % 2 !== 0) {
+      teamsCopy.push(null);
+    }
+
+    const totalTeams = teamsCopy.length;
+    const numRounds = totalTeams - 1;
+    const matchesPerRound = totalTeams / 2;
+
+    for (let round = 0; round < numRounds; round++) {
+      const roundMatches: any[] = [];
+
+      for (let match = 0; match < matchesPerRound; match++) {
+        const home = (round + match) % (totalTeams - 1);
+        const away = (totalTeams - 1 - match + round) % (totalTeams - 1);
+
+        let homeTeam, awayTeam;
+
+        if (match === 0) {
+          homeTeam = teamsCopy[totalTeams - 1];
+          awayTeam = teamsCopy[away];
+        } else {
+          homeTeam = teamsCopy[home];
+          awayTeam = teamsCopy[away];
+        }
+
+        if (homeTeam && awayTeam) {
+          roundMatches.push({ home: homeTeam, away: awayTeam });
+        }
+      }
+
+      groupMatches.push(roundMatches);
+    }
+
+    // Create match records for this group
+    groupMatches.forEach((roundMatches, roundIndex) => {
+      roundMatches.forEach((match, matchIndex) => {
+        matches.push({
+          event_id: eventId,
+          organization_id: organizationId,
+          round_number: roundIndex + 1,
+          round_label: `${group.name} - Matchday ${roundIndex + 1}`,
+          match_number_in_round: matchIndex + 1,
+          home_team_id: match.home.id,
+          away_team_id: match.away.id,
+          court_id: courts[courtIndex % courts.length].id,
+          scheduled_date: startDate,
+          scheduled_time: null,
+          status: "scheduled",
+          stage: "group",
+          group_id: group.id,
+        });
+
+        courtIndex++;
+      });
+    });
+
+    totalRounds = Math.max(totalRounds, numRounds);
+  }
+
+  // ─── Phase 2: Knockout Stage (Playoffs) ──────────────────────────────────
+
+  // Calculate playoff teams (top 2 from each group typically)
+  const teamsAdvancePerGroup = 2;
+  const totalPlayoffTeams = groups.length * teamsAdvancePerGroup;
+
+  // Generate playoff bracket structure (TBD teams)
+  const playoffRounds = Math.ceil(Math.log2(totalPlayoffTeams));
+  let teamsInRound = Math.ceil(totalPlayoffTeams / 2);
+
+  for (let round = 1; round <= playoffRounds; round++) {
+    const roundLabel = getPlayoffRoundLabel(round, playoffRounds);
+
+    for (let matchNum = 1; matchNum <= teamsInRound; matchNum++) {
+      matches.push({
+        event_id: eventId,
+        organization_id: organizationId,
+        round_number: totalRounds + round,
+        round_label: roundLabel,
+        match_number_in_round: matchNum,
+        home_team_id: null, // TBD from group winners
+        away_team_id: null, // TBD from group winners
+        court_id: courts[courtIndex % courts.length].id,
+        scheduled_date: startDate,
+        scheduled_time: null,
+        status: "scheduled",
+        stage: "playoff",
+        group_id: null,
+      });
+
+      courtIndex++;
+    }
+
+    teamsInRound = Math.ceil(teamsInRound / 2);
+  }
+
+  totalRounds += playoffRounds;
+
+  return { matches, rounds: totalRounds };
+}
+
+function getPlayoffRoundLabel(round: number, totalRounds: number): string {
+  const roundsFromEnd = totalRounds - round;
+  
+  if (roundsFromEnd === 0) return "Final";
+  if (roundsFromEnd === 1) return "Semi-final";
+  if (roundsFromEnd === 2) return "Quarter-final";
+  
+  return `Playoff Round ${round}`;
 }

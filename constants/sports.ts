@@ -11,7 +11,7 @@ export const SPORTS: SportMeta[] = [
     supportsIndividual: true,
     supportsTeam: true,
     scoringHint: "Sets of 11 points. Win by 2.",
-    formats: ["tournament", "league"],
+    formats: ["tournament", "league", "championship"],
   },
   {
     sport: "tennis",
@@ -22,7 +22,7 @@ export const SPORTS: SportMeta[] = [
     supportsIndividual: true,
     supportsTeam: true,
     scoringHint: "Games, sets, and matches. Tiebreak at 6–6.",
-    formats: ["tournament", "league"],
+    formats: ["tournament", "league", "championship"],
   },
   {
     sport: "badminton",
@@ -33,7 +33,7 @@ export const SPORTS: SportMeta[] = [
     supportsIndividual: true,
     supportsTeam: true,
     scoringHint: "Best of 3 sets to 21. Win by 2.",
-    formats: ["tournament", "league"],
+    formats: ["tournament", "league", "championship"],
   },
   {
     sport: "cricket",
@@ -44,7 +44,7 @@ export const SPORTS: SportMeta[] = [
     supportsIndividual: false,
     supportsTeam: true,
     scoringHint: "Runs per innings. Lower total follows on.",
-    formats: ["tournament", "league"],
+    formats: ["tournament", "league", "championship"],
   },
   {
     sport: "football",
@@ -55,7 +55,7 @@ export const SPORTS: SportMeta[] = [
     supportsIndividual: false,
     supportsTeam: true,
     scoringHint: "Goals in 90 min. Extra time and pens if needed.",
-    formats: ["tournament", "league"],
+    formats: ["tournament", "league", "championship"],
   },
   {
     sport: "pickleball",
@@ -66,7 +66,7 @@ export const SPORTS: SportMeta[] = [
     supportsIndividual: true,
     supportsTeam: true,
     scoringHint: "First to 11, win by 2. Kitchen rules apply.",
-    formats: ["tournament", "league"],
+    formats: ["tournament", "league", "championship"],
   },
 ];
 
@@ -80,6 +80,11 @@ export const FORMATS: FormatMeta[] = [
     format: "league",
     label: "League",
     description: "Round-robin standings with points system.",
+  },
+  {
+    format: "championship",
+    label: "Championship",
+    description: "Group stage followed by knockout playoffs.",
   },
 ];
 

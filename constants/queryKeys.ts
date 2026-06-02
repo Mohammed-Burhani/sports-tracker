@@ -33,6 +33,11 @@ export const queryKeys = {
     byEvent: (eventId: string) => ["teams", "event", eventId] as const,
   },
 
+  // Groups
+  groups: {
+    byEvent: (eventId: string) => ["groups", "event", eventId] as const,
+  },
+
   // Members
   members: {
     byEvent: (eventId: string) => ["members", "event", eventId] as const,

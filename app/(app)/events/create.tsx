@@ -33,6 +33,7 @@ const schema = z.object({
   max_participants: z.coerce.number().min(2).max(1000),
   num_teams: z.coerce.number().min(2).max(10).optional(),
   players_per_team: z.coerce.number().min(1).max(50).optional(),
+  groups_count: z.coerce.number().min(2).max(8).optional(),
   venue: z.string().optional(),
   start_date: z.string().min(4, "Start date required"),
   end_date: z.string().optional(),
@@ -88,6 +89,7 @@ export default function CreateEvent() {
       duration_hours: 2,
       status: "draft",
       description: "",
+      groups_count: 2,
     },
   });
 
@@ -190,6 +192,7 @@ export default function CreateEvent() {
         players_per_team: data.player_type === "team" ? (data.players_per_team || 11) : null,
         courts_count: data.player_type === "team" ? courts.filter(c => c.name.trim()).length : 0,
         court_names: data.player_type === "team" ? courts.filter(c => c.name.trim()).map(c => c.name.trim()) : null,
+        groups_count: data.format === "championship" ? (data.groups_count || 2) : null,
       };
       
       console.log("Event payload:", payload);
@@ -456,6 +459,24 @@ export default function CreateEvent() {
                     />
                   )}
                 />
+
+                {/* Championship groups */}
+                {values.format === "championship" && (
+                  <Controller
+                    control={control}
+                    name="groups_count"
+                    render={({ field: { onChange, value } }) => (
+                      <Input
+                        label="Number of Groups"
+                        value={String(value || "")}
+                        onChangeText={onChange}
+                        keyboardType="numeric"
+                        error={errors.groups_count?.message}
+                        hint="Teams will be divided into groups for group stage"
+                      />
+                    )}
+                  />
+                )}
 
                 <View style={styles.infoBox}>
                   <Text style={styles.infoText}>

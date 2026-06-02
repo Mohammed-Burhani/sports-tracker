@@ -22,6 +22,7 @@ import { useStandings } from "@/hooks/useStandings";
 import { useGenerateSchedule } from "@/hooks/useSchedule";
 import { useQuickMatchResult } from "@/hooks/useQuickMatchResult";
 import { useMembers, useAddMember, useUpdateMember, useDeleteMember, useAssignMembersToTeams } from "@/hooks/useMembers";
+import { useGroups, useCreateGroup, useUpdateGroup, useDeleteGroup, useAssignTeamToGroup } from "@/hooks/useGroups";
 import { getSportMeta, getFormatMeta } from "@/constants/sports";
 import { MatchCard } from "@/components/MatchCard";
 import { MatchResultSheet } from "@/components/MatchResultSheet";
@@ -30,10 +31,12 @@ import { MemberCard } from "@/components/MemberCard";
 import { MemberSheet } from "@/components/MemberSheet";
 import { TeamAssignmentSheet } from "@/components/TeamAssignmentSheet";
 import { MemberAssignmentSheet } from "@/components/MemberAssignmentSheet";
+import { GroupCard } from "@/components/GroupCard";
+import { GroupSheet } from "@/components/GroupSheet";
 import { colors, spacing, typography, radius, shadows, sportThemes } from "@/constants/theme";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { FormatBadge } from "@/components/ui/FormatBadge";
-import { MatchWithTeams, MemberWithTeam, Team } from "@/types";
+import { MatchWithTeams, MemberWithTeam, Team, GroupWithTeams } from "@/types";
 import { showSuccessToast, showErrorToast } from "@/utils/toast";
 
 export default function EventDetail() {
@@ -47,12 +50,15 @@ export default function EventDetail() {
   const [showTeamAssignSheet, setShowTeamAssignSheet] = useState(false);
   const [showMemberAssignSheet, setShowMemberAssignSheet] = useState(false);
   const [selectedTeamForAssign, setSelectedTeamForAssign] = useState<Team | null>(null);
+  const [showGroupSheet, setShowGroupSheet] = useState(false);
+  const [selectedGroup, setSelectedGroup] = useState<GroupWithTeams | undefined>();
 
   const { data: event, isLoading: eventLoading, refetch } = useEvent(id);
   const { data: matches, isLoading: matchesLoading } = useMatchesByEvent(id);
   const { data: teams } = useTeams(id);
   const { data: standings } = useStandings(id);
   const { data: members = [], isLoading: membersLoading } = useMembers(id);
+  const { data: groups = [], isLoading: groupsLoading } = useGroups(id);
   const deleteEvent = useDeleteEvent();
   const regenerateSchedule = useGenerateSchedule();
   const quickMarkResult = useQuickMatchResult();
@@ -60,6 +66,10 @@ export default function EventDetail() {
   const updateMemberMutation = useUpdateMember(id);
   const deleteMemberMutation = useDeleteMember(id);
   const assignMembersToTeamsMutation = useAssignMembersToTeams(id);
+  const createGroupMutation = useCreateGroup(id);
+  const updateGroupMutation = useUpdateGroup(id);
+  const deleteGroupMutation = useDeleteGroup(id);
+  const assignTeamToGroupMutation = useAssignTeamToGroup(id);
 
   if (eventLoading) {
     return (
@@ -252,6 +262,55 @@ export default function EventDetail() {
     }
   }
 
+  async function handleSaveGroup(data: { name: string }) {
+    if (!event) return;
+
+    if (selectedGroup) {
+      await updateGroupMutation.mutateAsync({
+        id: selectedGroup.id,
+        name: data.name,
+      });
+    } else {
+      await createGroupMutation.mutateAsync({
+        organizationId: event.organization_id,
+        name: data.name,
+        sortOrder: groups.length,
+      });
+    }
+    setShowGroupSheet(false);
+  }
+
+  async function handleDeleteGroup() {
+    if (!selectedGroup) return;
+    await deleteGroupMutation.mutateAsync(selectedGroup.id);
+    setShowGroupSheet(false);
+  }
+
+  async function handleAssignTeamToGroup(teamId: string) {
+    if (!selectedGroup) return;
+    try {
+      await assignTeamToGroupMutation.mutateAsync({
+        teamId,
+        groupId: selectedGroup.id,
+      });
+      showSuccessToast('Team assigned to group');
+    } catch (error) {
+      showErrorToast('Failed to assign team');
+    }
+  }
+
+  async function handleUnassignTeamFromGroup(teamId: string) {
+    try {
+      await assignTeamToGroupMutation.mutateAsync({
+        teamId,
+        groupId: null,
+      });
+      showSuccessToast('Team unassigned from group');
+    } catch (error) {
+      showErrorToast('Failed to unassign team');
+    }
+  }
+
   const unassignedMembersCount = members.filter(m => !m.team_id).length;
   const showAssignButton = members.length > 0 && (teams?.length ?? 0) > 0 && unassignedMembersCount > 0;
 
@@ -392,7 +451,7 @@ export default function EventDetail() {
           </View>
 
           {/* Teams Section */}
-          {event.player_type === "team" && (
+          {event.player_type === "team" && event.format !== "championship" && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Teams ({teams?.length ?? 0})</Text>
 
@@ -433,6 +492,64 @@ export default function EventDetail() {
                     ))}
                   </View>
                 </>
+              )}
+            </View>
+          )}
+
+          {/* Groups Section (Championship only) */}
+          {event.player_type === "team" && event.format === "championship" && (
+            <View style={styles.section}>
+              <View style={styles.membersSectionHeader}>
+                <Text style={styles.sectionTitle}>Groups ({groups.length})</Text>
+                <TouchableOpacity
+                  style={[styles.addMemberButton, shadows.card]}
+                  onPress={() => {
+                    setSelectedGroup(undefined);
+                    setShowGroupSheet(true);
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.addMemberButtonText}>+ Add Group</Text>
+                </TouchableOpacity>
+              </View>
+
+              {groupsLoading ? (
+                <ActivityIndicator size="small" color={colors.primaryAccent} />
+              ) : groups.length === 0 ? (
+                <View style={[styles.emptyCard, shadows.card]}>
+                  <Ionicons name="people-outline" size={32} color={colors.textTertiary} />
+                  <Text style={styles.emptyText}>No groups yet</Text>
+                  <Text style={styles.emptyHint}>Create groups to organize teams</Text>
+                </View>
+              ) : (
+                <View style={styles.membersList}>
+                  {groups.map((group) => (
+                    <GroupCard
+                      key={group.id}
+                      group={group}
+                      onPress={() => {
+                        setSelectedGroup(group);
+                        setShowGroupSheet(true);
+                      }}
+                      onDelete={() => {
+                        Alert.alert(
+                          'Delete Group',
+                          `Remove ${group.name}? Teams will be unassigned.`,
+                          [
+                            { text: 'Cancel', style: 'cancel' },
+                            {
+                              text: 'Delete',
+                              style: 'destructive',
+                              onPress: async () => {
+                                await deleteGroupMutation.mutateAsync(group.id);
+                              },
+                            },
+                          ]
+                        );
+                      }}
+                    />
+                  ))}
+                </View>
               )}
             </View>
           )}
@@ -522,9 +639,9 @@ export default function EventDetail() {
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <Text style={styles.sectionTitle}>Schedule</Text>
-              {event.format === "tournament" && matches && matches.length > 0 && (
+              {(event.format === "tournament" || event.format === "championship") && matches && matches.length > 0 && (
                 <Text style={styles.sectionHint}>
-                  Mark Win/Loss for each team
+                  {event.format === "championship" ? "Tap to record results" : "Mark Win/Loss for each team"}
                 </Text>
               )}
             </View>
@@ -555,7 +672,7 @@ export default function EventDetail() {
                         key={match.id}
                         match={match}
                         format={event.format}
-                        onPress={event.format === "league" ? () => handleMatchPress(match) : undefined}
+                        onPress={(event.format === "league" || event.format === "championship") ? () => handleMatchPress(match) : undefined}
                         onMarkWin={event.format === "tournament" ? (teamId) => handleMarkWin(match, teamId) : undefined}
                       />
                     ))}
@@ -564,8 +681,8 @@ export default function EventDetail() {
             )}
           </View>
 
-          {/* Standings Section (League only) */}
-          {event.format === "league" && (
+          {/* Standings Section (League & Championship) */}
+          {(event.format === "league" || event.format === "championship") && (
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Standings</Text>
               <StandingsTable standings={standings || []} />
@@ -654,6 +771,21 @@ export default function EventDetail() {
           setSelectedTeamForAssign(null);
         }}
         onAssign={handleAssignToTeam}
+      />
+
+      {/* Group Sheet */}
+      <GroupSheet
+        visible={showGroupSheet}
+        group={selectedGroup}
+        teams={teams || []}
+        onClose={() => {
+          setShowGroupSheet(false);
+          setSelectedGroup(undefined);
+        }}
+        onSave={handleSaveGroup}
+        onDelete={selectedGroup ? handleDeleteGroup : undefined}
+        onAssignTeam={handleAssignTeamToGroup}
+        onUnassignTeam={handleUnassignTeamFromGroup}
       />
     </View>
   );
@@ -1002,5 +1134,10 @@ const styles = StyleSheet.create({
     ...typography.small,
     color: colors.textSecondary,
     fontStyle: 'italic',
+  },
+  emptyHint: {
+    ...typography.small,
+    color: colors.textTertiary,
+    marginTop: spacing.xs,
   },
 });

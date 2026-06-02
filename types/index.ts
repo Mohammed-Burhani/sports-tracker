@@ -10,7 +10,8 @@ export type Sport =
 
 export type EventFormat =
   | "tournament"
-  | "league";
+  | "league"
+  | "championship";
 
 export type PlayerType = "individual" | "team";
 
@@ -43,7 +44,13 @@ export interface LeagueConfig {
   league_legs: number;
 }
 
-export type FormatConfig = TournamentConfig | LeagueConfig;
+export interface ChampionshipConfig {
+  championship_groups_count: number;
+  championship_teams_advance_per_group: number;
+  championship_has_playoffs: boolean;
+}
+
+export type FormatConfig = TournamentConfig | LeagueConfig | ChampionshipConfig;
 
 // ─── Database Types ───────────────────────────────────────────────────────────
 
@@ -105,6 +112,7 @@ export interface Team {
   name: string;
   player_count: number;
   colour_hex: string;
+  group_id: string | null;
   created_at: string;
 }
 
@@ -144,6 +152,8 @@ export interface Match {
   winner_team_id: string | null;
   is_draw: boolean;
   notes: string | null;
+  group_id: string | null;
+  stage: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -161,6 +171,7 @@ export interface Standing {
   goal_difference: number;
   points: number;
   position: number;
+  group_id: string | null;
   updated_at: string;
 }
 
@@ -174,6 +185,9 @@ export interface EventFormatConfig {
   league_points_win?: number;
   league_points_draw?: number;
   league_points_loss?: number;
+  championship_groups_count?: number;
+  championship_teams_advance_per_group?: number;
+  championship_has_playoffs?: boolean;
   created_at: string;
 }
 
@@ -224,4 +238,16 @@ export interface DashboardStats {
   activeEvents: number;
   upcomingEvents: Event[];
   recentMatches: MatchWithTeams[];
+}
+
+export interface Group {
+  id: string;
+  event_id: string;
+  name: string;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface GroupWithTeams extends Group {
+  teams: Team[];
 }
