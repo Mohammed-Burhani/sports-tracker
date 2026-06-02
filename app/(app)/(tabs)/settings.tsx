@@ -1,14 +1,14 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   ScrollView,
   View,
   Text,
   TouchableOpacity,
-  Alert,
+  StyleSheet,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "@/constants/queryKeys";
 import { supabase } from "@/lib/supabase";
 import { getProfile } from "@/lib/api/dashboard";
@@ -18,6 +18,8 @@ import { useForm, Controller } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Constants from "expo-constants";
+import { colors, spacing, typography, radius, shadows } from "@/constants/theme";
+import { showErrorToast, showSuccessToast } from "@/utils/toast";
 
 const profileSchema = z.object({
   full_name: z.string().min(2, "Enter your full name"),
@@ -69,9 +71,12 @@ export default function SettingsTab() {
       .update({ full_name: data.full_name })
       .eq("user_id", user.id);
     setSavingProfile(false);
-    if (error) { Alert.alert("Error", error.message); return; }
+    if (error) {
+      showErrorToast(error.message);
+      return;
+    }
     qc.invalidateQueries({ queryKey: queryKeys.profile });
-    Alert.alert("Saved", "Profile updated.");
+    showSuccessToast("Profile updated");
   }
 
   async function saveOrg(data: z.infer<typeof orgSchema>) {
@@ -87,9 +92,12 @@ export default function SettingsTab() {
       })
       .eq("id", userData.organization.id);
     setSavingOrg(false);
-    if (error) { Alert.alert("Error", error.message); return; }
+    if (error) {
+      showErrorToast(error.message);
+      return;
+    }
     qc.invalidateQueries({ queryKey: queryKeys.profile });
-    Alert.alert("Saved", "Organisation updated.");
+    showSuccessToast("Organisation updated");
   }
 
   async function handleSignOut() {
@@ -97,163 +105,296 @@ export default function SettingsTab() {
     router.replace("/(auth)/sign-in");
   }
 
-  const ROLE_COLORS: Record<string, string> = { admin: "#F59E0B", staff: "#22C55E", viewer: "#64748B" };
+  const ROLE_COLORS: Record<string, string> = {
+    admin: colors.sport.tableTennis.accent,
+    staff: colors.sport.football.accent,
+    viewer: colors.textTertiary,
+  };
   const role = userData?.role ?? "viewer";
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#0F172A" }}>
-      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 48 }}>
-        <Text className="text-white text-2xl font-black mb-6">Settings</Text>
-
-        {/* User Info */}
-        <View
-          className="rounded-2xl p-4 mb-6 flex-row items-center gap-4"
-          style={{ backgroundColor: "#1E293B" }}
+    <View style={styles.screen}>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <ScrollView
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
         >
-          <View
-            className="w-14 h-14 rounded-xl items-center justify-center"
-            style={{ backgroundColor: "#6366F133" }}
-          >
-            <Text style={{ fontSize: 28 }}>👤</Text>
-          </View>
-          <View className="flex-1">
-            <Text className="text-white font-bold text-lg">{userData?.full_name ?? "—"}</Text>
-            <Text className="text-slate-400 text-sm">{userData?.organization?.name ?? "—"}</Text>
-            <View
-              className="mt-1 self-start rounded-full px-2 py-0.5"
-              style={{ backgroundColor: ROLE_COLORS[role] + "22" }}
-            >
-              <Text style={{ color: ROLE_COLORS[role], fontSize: 10, fontWeight: "700", textTransform: "uppercase" }}>
-                {role}
-              </Text>
+          <Text style={styles.pageTitle}>Settings</Text>
+
+          {/* User Info */}
+          <View style={[styles.userCard, shadows.card]}>
+            <View style={styles.userAvatar}>
+              <Text style={styles.userAvatarEmoji}>👤</Text>
             </View>
-          </View>
-        </View>
-
-        {/* Section tabs */}
-        <View className="flex-row mb-5 rounded-xl overflow-hidden" style={{ backgroundColor: "#1E293B" }}>
-          {(["profile", "org"] as const).map((tab) => (
-            <TouchableOpacity
-              key={tab}
-              onPress={() => setSection(tab)}
-              className="flex-1 py-2.5 items-center"
-              style={{ backgroundColor: section === tab ? "#6366F1" : "transparent" }}
-            >
-              <Text className="font-semibold text-sm" style={{ color: section === tab ? "#FFF" : "#64748B" }}>
-                {tab === "profile" ? "My Profile" : "Organisation"}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {section === "profile" ? (
-          <View>
-            <Controller
-              control={profileForm.control}
-              name="full_name"
-              render={({ field: { onChange, value } }) => (
-                <Input
-                  label="Full Name"
-                  value={value}
-                  onChangeText={onChange}
-                  error={profileForm.formState.errors.full_name?.message as string | undefined}
-                />
-              )}
-            />
-            <View className="mb-4">
-              <Text className="text-slate-400 text-sm mb-1 font-medium">Role</Text>
-              <View
-                className="rounded-xl p-3"
-                style={{ backgroundColor: "#1E293B", borderWidth: 1, borderColor: "#334155" }}
-              >
-                <Text className="text-slate-300 capitalize">{role}</Text>
+            <View style={styles.userInfo}>
+              <Text style={styles.userName}>{userData?.full_name ?? "—"}</Text>
+              <Text style={styles.userOrg}>{userData?.organization?.name ?? "—"}</Text>
+              <View style={[styles.roleBadge, { backgroundColor: `${ROLE_COLORS[role]}20` }]}>
+                <Text style={[styles.roleText, { color: ROLE_COLORS[role] }]}>
+                  {role.toUpperCase()}
+                </Text>
               </View>
             </View>
-            <Button
-              label="Save Profile"
-              onPress={profileForm.handleSubmit(saveProfile)}
-              loading={savingProfile}
-              fullWidth
-              color="#6366F1"
-            />
           </View>
-        ) : (
-          <View>
-            <Controller
-              control={orgForm.control}
-              name="name"
-              render={({ field: { onChange, value } }) => (
-                <Input
-                  label="Organisation Name"
-                  value={value}
-                  onChangeText={onChange}
-                  error={orgForm.formState.errors.name?.message}
-                />
-              )}
-            />
-            <Controller
-              control={orgForm.control}
-              name="contact_email"
-              render={({ field: { onChange, value } }) => (
-                <Input
-                  label="Contact Email"
-                  value={value}
-                  onChangeText={onChange}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  error={orgForm.formState.errors.contact_email?.message}
-                />
-              )}
-            />
-            <Controller
-              control={orgForm.control}
-              name="contact_phone"
-              render={({ field: { onChange, value } }) => (
-                <Input
-                  label="Contact Phone"
-                  value={value}
-                  onChangeText={onChange}
-                  keyboardType="phone-pad"
-                />
-              )}
-            />
-            <Controller
-              control={orgForm.control}
-              name="address"
-              render={({ field: { onChange, value } }) => (
-                <Input
-                  label="Address"
-                  value={value}
-                  onChangeText={onChange}
-                  multiline
-                  numberOfLines={2}
-                />
-              )}
-            />
-            {userData?.role === "admin" && (
-              <Button
-                label="Save Organisation"
-                onPress={orgForm.handleSubmit(saveOrg)}
-                loading={savingOrg}
-                fullWidth
-                color="#6366F1"
-              />
-            )}
-          </View>
-        )}
 
-        <View className="mt-8 pt-6 border-t border-navy-border">
-          <Button
-            label="Sign out"
-            onPress={handleSignOut}
-            variant="danger"
-            fullWidth
-          />
-          <Text className="text-slate-600 text-xs text-center mt-4">
-            Sports Tracker v{Constants.expoConfig?.version ?? "1.0.0"}
-          </Text>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+          {/* Section tabs */}
+          <View style={[styles.tabsContainer, shadows.card]}>
+            {(["profile", "org"] as const).map((tab) => (
+              <TouchableOpacity
+                key={tab}
+                onPress={() => setSection(tab)}
+                style={[
+                  styles.tab,
+                  section === tab && styles.tabActive,
+                ]}
+                activeOpacity={0.8}
+              >
+                <Text style={[
+                  styles.tabText,
+                  section === tab && styles.tabTextActive,
+                ]}>
+                  {tab === "profile" ? "My Profile" : "Organisation"}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {section === "profile" ? (
+            <View>
+              <Controller
+                control={profileForm.control}
+                name="full_name"
+                render={({ field: { onChange, value } }) => (
+                  <Input
+                    label="Full Name"
+                    value={value}
+                    onChangeText={onChange}
+                    error={profileForm.formState.errors.full_name?.message as string | undefined}
+                  />
+                )}
+              />
+              <View style={styles.roleField}>
+                <Text style={styles.roleLabel}>Role</Text>
+                <View style={styles.roleDisplay}>
+                  <Text style={styles.roleDisplayText}>{role}</Text>
+                </View>
+              </View>
+              <Button
+                label="Save Profile"
+                onPress={profileForm.handleSubmit(saveProfile)}
+                loading={savingProfile}
+                fullWidth
+              />
+            </View>
+          ) : (
+            <View>
+              <Controller
+                control={orgForm.control}
+                name="name"
+                render={({ field: { onChange, value } }) => (
+                  <Input
+                    label="Organisation Name"
+                    value={value}
+                    onChangeText={onChange}
+                    error={orgForm.formState.errors.name?.message}
+                  />
+                )}
+              />
+              <Controller
+                control={orgForm.control}
+                name="contact_email"
+                render={({ field: { onChange, value } }) => (
+                  <Input
+                    label="Contact Email"
+                    value={value}
+                    onChangeText={onChange}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    error={orgForm.formState.errors.contact_email?.message}
+                  />
+                )}
+              />
+              <Controller
+                control={orgForm.control}
+                name="contact_phone"
+                render={({ field: { onChange, value } }) => (
+                  <Input
+                    label="Contact Phone"
+                    value={value}
+                    onChangeText={onChange}
+                    keyboardType="phone-pad"
+                  />
+                )}
+              />
+              <Controller
+                control={orgForm.control}
+                name="address"
+                render={({ field: { onChange, value } }) => (
+                  <Input
+                    label="Address"
+                    value={value}
+                    onChangeText={onChange}
+                    multiline
+                    numberOfLines={2}
+                  />
+                )}
+              />
+              {userData?.role === "admin" && (
+                <Button
+                  label="Save Organisation"
+                  onPress={orgForm.handleSubmit(saveOrg)}
+                  loading={savingOrg}
+                  fullWidth
+                />
+              )}
+            </View>
+          )}
+
+          <View style={styles.footerSection}>
+            <Button
+              label="Sign out"
+              onPress={handleSignOut}
+              variant="danger"
+              fullWidth
+            />
+            <Text style={styles.versionText}>
+              Sports Tracker v{Constants.expoConfig?.version ?? "1.0.0"}
+            </Text>
+          </View>
+
+          {/* Bottom padding for tab bar */}
+          <View style={{ height: 100 }} />
+        </ScrollView>
+      </SafeAreaView>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: colors.base,
+  },
+  safeArea: {
+    flex: 1,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    padding: spacing.lg,
+  },
+  pageTitle: {
+    ...typography.title,
+    color: colors.textPrimary,
+    marginBottom: spacing.xl,
+  },
+  userCard: {
+    backgroundColor: colors.cardSurface,
+    borderRadius: radius.xxl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.lg,
+    marginBottom: spacing.xl,
+  },
+  userAvatar: {
+    width: 56,
+    height: 56,
+    borderRadius: radius.xl,
+    backgroundColor: colors.accentSoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  userAvatarEmoji: {
+    fontSize: 28,
+  },
+  userInfo: {
+    flex: 1,
+  },
+  userName: {
+    ...typography.heading,
+    color: colors.textPrimary,
+    marginBottom: 2,
+  },
+  userOrg: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  roleBadge: {
+    alignSelf: "flex-start",
+    borderRadius: radius.pill,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+  },
+  roleText: {
+    ...typography.small,
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 0.5,
+  },
+  tabsContainer: {
+    flexDirection: "row",
+    backgroundColor: colors.cardSurface,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: spacing.xl,
+    overflow: "hidden",
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: spacing.md,
+    alignItems: "center",
+    backgroundColor: "transparent",
+  },
+  tabActive: {
+    backgroundColor: colors.accentSoft,
+  },
+  tabText: {
+    ...typography.bodyBold,
+    fontSize: 14,
+    color: colors.textTertiary,
+  },
+  tabTextActive: {
+    color: colors.accentInk,
+  },
+  roleField: {
+    marginBottom: spacing.lg,
+  },
+  roleLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontWeight: "600",
+    marginBottom: spacing.xs,
+  },
+  roleDisplay: {
+    backgroundColor: colors.inputFill,
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
+    borderColor: colors.inputBorder,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+  },
+  roleDisplayText: {
+    ...typography.body,
+    color: colors.textPrimary,
+    textTransform: "capitalize",
+  },
+  footerSection: {
+    marginTop: spacing.xxxl,
+    paddingTop: spacing.xl,
+    borderTopWidth: 1,
+    borderTopColor: colors.divider,
+  },
+  versionText: {
+    ...typography.small,
+    color: colors.textTertiary,
+    textAlign: "center",
+    marginTop: spacing.lg,
+  },
+});

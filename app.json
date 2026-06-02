@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Sports Tracker",
-    "slug": "sports-tracker",
+    "slug": "united-sports",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -28,6 +28,13 @@
       "expo-router",
       "expo-status-bar",
       "expo-secure-store"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "2e79255e-b2dd-4ad3-9050-d57ce1eb21e8"
+      }
+    },
+    "owner": "burhani-technologies"
   }
 }
