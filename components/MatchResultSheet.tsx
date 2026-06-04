@@ -23,9 +23,10 @@ interface MatchResultSheetProps {
   match: MatchWithTeams | null;
   onClose: () => void;
   format?: "tournament" | "league";
+  captainTeamId?: string; // If provided, restrict editing to this team only
 }
 
-export function MatchResultSheet({ visible, match, onClose, format = "league" }: MatchResultSheetProps) {
+export function MatchResultSheet({ visible, match, onClose, format = "league", captainTeamId }: MatchResultSheetProps) {
   const [rounds, setRounds] = useState<Array<{
     id?: string;
     round_number: number;
@@ -91,6 +92,11 @@ export function MatchResultSheet({ visible, match, onClose, format = "league" }:
   }
 
   if (!match) return null;
+
+  // Determine if user is a captain and which team
+  const isCaptain = !!captainTeamId;
+  const canEditHomeScore = !isCaptain || captainTeamId === match.home_team_id;
+  const canEditAwayScore = !isCaptain || captainTeamId === match.away_team_id;
 
   const homeParticipants = homeMembers.sort((a, b) => {
     const roleOrder = { captain: 0, player: 1, substitute: 2, null: 3 };
@@ -361,21 +367,29 @@ export function MatchResultSheet({ visible, match, onClose, format = "league" }:
                   
                   <View style={styles.roundInputs}>
                     <TextInput
-                      style={styles.scoreInput}
+                      style={[
+                        styles.scoreInput,
+                        !canEditHomeScore && styles.scoreInputDisabled
+                      ]}
                       value={round.home_score}
                       onChangeText={(v) => updateRoundScore(index, "home_score", v)}
                       keyboardType="number-pad"
                       placeholder="—"
                       placeholderTextColor={colors.textTertiary}
+                      editable={canEditHomeScore}
                     />
                     <Text style={styles.scoreSeparator}>:</Text>
                     <TextInput
-                      style={styles.scoreInput}
+                      style={[
+                        styles.scoreInput,
+                        !canEditAwayScore && styles.scoreInputDisabled
+                      ]}
                       value={round.away_score}
                       onChangeText={(v) => updateRoundScore(index, "away_score", v)}
                       keyboardType="number-pad"
                       placeholder="—"
                       placeholderTextColor={colors.textTertiary}
+                      editable={canEditAwayScore}
                     />
                   </View>
 
@@ -400,22 +414,24 @@ export function MatchResultSheet({ visible, match, onClose, format = "league" }:
               ))}
             </View>
 
-            {/* Match Status */}
-            <View style={styles.statusSection}>
-              <Text style={styles.sectionLabel}>Match Status</Text>
-              <View style={styles.statusPickerContainer}>
-                <Picker
-                  selectedValue={overallStatus}
-                  onValueChange={(value) => setOverallStatus(value as MatchStatus)}
-                  style={styles.statusPicker}
-                >
-                  <Picker.Item label="Scheduled" value="scheduled" />
-                  <Picker.Item label="Ongoing" value="ongoing" />
-                  <Picker.Item label="Completed" value="completed" />
-                  <Picker.Item label="Cancelled" value="cancelled" />
-                </Picker>
+            {/* Match Status - Hidden for captains */}
+            {!isCaptain && (
+              <View style={styles.statusSection}>
+                <Text style={styles.sectionLabel}>Match Status</Text>
+                <View style={styles.statusPickerContainer}>
+                  <Picker
+                    selectedValue={overallStatus}
+                    onValueChange={(value) => setOverallStatus(value as MatchStatus)}
+                    style={styles.statusPicker}
+                  >
+                    <Picker.Item label="Scheduled" value="scheduled" />
+                    <Picker.Item label="Ongoing" value="ongoing" />
+                    <Picker.Item label="Completed" value="completed" />
+                    <Picker.Item label="Cancelled" value="cancelled" />
+                  </Picker>
+                </View>
               </View>
-            </View>
+            )}
           </ScrollView>
 
           {/* Footer */}
@@ -620,6 +636,11 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     textAlign: "center",
     fontSize: 18,
+  },
+  scoreInputDisabled: {
+    backgroundColor: colors.base,
+    color: colors.textTertiary,
+    opacity: 0.6,
   },
   scoreSeparator: {
     ...typography.body,

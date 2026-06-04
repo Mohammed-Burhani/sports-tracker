@@ -588,7 +588,7 @@ export default function EventDetail() {
             </View>
           )}
 
-          {/* Members Section */}
+          {/* Members Section */} 
           {!isCaptainMode && (
             <View style={styles.section}>
               <View style={styles.membersSectionHeader}>
@@ -734,6 +734,7 @@ export default function EventDetail() {
         visible={showMatchSheet}
         match={selectedMatch}
         format={event.format}
+        captainTeamId={isCaptainMode ? captainTeamId : undefined}
         onClose={() => {
           setShowMatchSheet(false);
           setSelectedMatch(null);
