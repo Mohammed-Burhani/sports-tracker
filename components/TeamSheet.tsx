@@ -9,12 +9,12 @@ import {
   ScrollView,
   ActivityIndicator,
 } from "react-native";
-import { X, User, ShieldCheck, Users as UsersIcon } from "lucide-react-native";
+import { X, User, ShieldCheck, Users as UsersIcon, Copy, Check } from "lucide-react-native";
 import { colors, spacing, typography, radius } from "@/constants/theme";
 import { Team, Member } from "@/types";
-import { getMembersByTeam } from "@/lib/api/members";
-import { updateMember } from "@/lib/api/members";
+import { getMembersByTeam, updateMemberRole } from "@/lib/api/members";
 import { showSuccessToast, showErrorToast } from "@/utils/toast";
+import * as Clipboard from "expo-clipboard";
 
 interface TeamSheetProps {
   visible: boolean;
@@ -34,6 +34,7 @@ export function TeamSheet({
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(false);
   const [updating, setUpdating] = useState<string | null>(null);
+  const [codeCopied, setCodeCopied] = useState(false);
 
   useEffect(() => {
     if (visible && team) {
@@ -74,7 +75,7 @@ export function TeamSheet({
 
     setUpdating(member.id);
     try {
-      await updateMember(member.id, { role: newRole });
+      await updateMemberRole(member.id, newRole);
       await loadMembers();
       onMembersUpdated();
       showSuccessToast("Role updated");
@@ -84,6 +85,14 @@ export function TeamSheet({
     } finally {
       setUpdating(null);
     }
+  }
+
+  async function handleCopyCode() {
+    if (!team) return;
+    await Clipboard.setStringAsync(team.access_code);
+    setCodeCopied(true);
+    showSuccessToast("Team code copied");
+    setTimeout(() => setCodeCopied(false), 2000);
   }
 
   if (!team) return null;
@@ -129,6 +138,23 @@ export function TeamSheet({
                   <Text style={styles.overLimitText}> (over limit)</Text>
                 )}
               </Text>
+              <View style={styles.codeRow}>
+                <View style={styles.codeBox}>
+                  <Text style={styles.codeLabel}>Captain Code</Text>
+                  <Text style={styles.codeValue}>{team.access_code}</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={handleCopyCode}
+                  style={styles.copyButton}
+                  activeOpacity={0.7}
+                >
+                  {codeCopied ? (
+                    <Check size={16} color={colors.success} strokeWidth={2.5} />
+                  ) : (
+                    <Copy size={16} color={colors.textSecondary} strokeWidth={2.5} />
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
               <X
@@ -391,6 +417,43 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textTertiary,
     marginTop: 4,
+  },
+  codeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+  },
+  codeBox: {
+    flex: 1,
+    backgroundColor: colors.base,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+  },
+  codeLabel: {
+    ...typography.small,
+    color: colors.textTertiary,
+    fontSize: 10,
+    marginBottom: 2,
+  },
+  codeValue: {
+    ...typography.bodyBold,
+    color: colors.textPrimary,
+    fontSize: 14,
+    letterSpacing: 1.5,
+  },
+  copyButton: {
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.cardSurface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   overLimitText: {
     color: colors.danger,

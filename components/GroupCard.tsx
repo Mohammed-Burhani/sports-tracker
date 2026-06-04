@@ -2,16 +2,17 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radius, typography, shadows } from '@/constants/theme';
-import type { GroupWithTeams } from '@/types';
+import type { GroupWithTeams, Team } from '@/types';
 
 interface GroupCardProps {
   group: GroupWithTeams;
   onPress?: () => void;
   onDelete?: () => void;
+  onTeamPress?: (team: Team) => void;
   showTeams?: boolean;
 }
 
-export function GroupCard({ group, onPress, onDelete, showTeams = true }: GroupCardProps) {
+export function GroupCard({ group, onPress, onDelete, onTeamPress, showTeams = true }: GroupCardProps) {
   return (
     <TouchableOpacity
       style={[styles.container, shadows.card]}
@@ -45,10 +46,16 @@ export function GroupCard({ group, onPress, onDelete, showTeams = true }: GroupC
       {showTeams && group.teams && group.teams.length > 0 && (
         <View style={styles.teamsContainer}>
           {group.teams.map((team) => (
-            <View key={team.id} style={styles.teamChip}>
+            <TouchableOpacity
+              key={team.id}
+              style={styles.teamChip}
+              onPress={() => onTeamPress?.(team)}
+              activeOpacity={onTeamPress ? 0.7 : 1}
+              disabled={!onTeamPress}
+            >
               <View style={[styles.teamDot, { backgroundColor: team.colour_hex }]} />
               <Text style={styles.teamName}>{team.name}</Text>
-            </View>
+            </TouchableOpacity>
           ))}
         </View>
       )}

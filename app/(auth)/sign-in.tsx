@@ -116,6 +116,23 @@ export default function SignIn() {
             loading={loading}
             fullWidth
           />
+
+          {/* Divider */}
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          {/* Captain Sign In Button */}
+          <TouchableOpacity
+            style={styles.captainButton}
+            onPress={() => router.push("/(auth)/captain-sign-in")}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.captainButtonText}>Sign in as Captain</Text>
+            <Text style={styles.captainButtonHint}>Use your team code</Text>
+          </TouchableOpacity>
         </View>
 
         {/* <TouchableOpacity
@@ -202,5 +219,37 @@ const styles = StyleSheet.create({
   signUpLink: {
     color: colors.accent,
     fontWeight: "700",
+  },
+  divider: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginVertical: spacing.lg,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.border,
+  },
+  dividerText: {
+    ...typography.small,
+    color: colors.textTertiary,
+    marginHorizontal: spacing.md,
+  },
+  captainButton: {
+    backgroundColor: colors.base,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    alignItems: "center",
+  },
+  captainButtonText: {
+    ...typography.bodyBold,
+    color: colors.textPrimary,
+    marginBottom: 2,
+  },
+  captainButtonHint: {
+    ...typography.small,
+    color: colors.textSecondary,
   },
 });

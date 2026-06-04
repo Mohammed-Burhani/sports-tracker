@@ -8,6 +8,8 @@ export default function AuthLayout() {
         contentStyle: { backgroundColor: "#0F172A" },
         animation: "fade",
       }}
-    />
+    >
+      <Stack.Screen name="captain-sign-in" />
+    </Stack>
   );
 }

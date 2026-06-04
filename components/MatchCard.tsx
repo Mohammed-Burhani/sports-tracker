@@ -9,6 +9,7 @@ interface MatchCardProps {
   onMarkWin?: (teamId: string) => void;
   compact?: boolean;
   format?: "tournament" | "league";
+  highlightTeamId?: string;
 }
 
 export function MatchCard({ 
@@ -16,7 +17,8 @@ export function MatchCard({
   onPress, 
   onMarkWin,
   compact = false,
-  format = "tournament"
+  format = "tournament",
+  highlightTeamId
 }: MatchCardProps) {
   const isTBD = !match.home_team_id || !match.away_team_id;
   const isCompleted = match.status === "completed";
@@ -56,8 +58,8 @@ export function MatchCard({
         isTBD && styles.cardTBD,
         compact && styles.cardCompact
       ]}
-      activeOpacity={0.8}
-      disabled={!onPress && !canMark}
+      activeOpacity={isTBD ? 1 : 0.8}
+      disabled={isTBD || (!onPress && !canMark)}
     >
       {/* Header - Status dot only, no round label */}
       <View style={styles.header}>
@@ -242,10 +244,8 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   cardTBD: {
-    backgroundColor: colors.inputFill,
-    borderStyle: "dashed",
-    borderWidth: 1.5,
-    opacity: 0.5,
+    backgroundColor: colors.base,
+    borderColor: colors.borderStrong,
   },
   cardCompact: {
     padding: spacing.sm,
@@ -297,9 +297,6 @@ const styles = StyleSheet.create({
   teamsContainer: {
     gap: spacing.xs,
     marginBottom: spacing.sm,
-  },
-  teamsContainerTBD: {
-    opacity: 1, // Override since parent already has opacity
   },
   teamRow: {
     flexDirection: "row",

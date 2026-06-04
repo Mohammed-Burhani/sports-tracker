@@ -9,6 +9,7 @@ import {
   TextInput,
   ScrollView,
 } from "react-native";
+import { Picker } from "@react-native-picker/picker";
 import { X, User, ShieldCheck } from "lucide-react-native";
 import { MatchWithTeams, MatchStatus, MatchRound, Member } from "@/types";
 import { colors, spacing, typography, radius } from "@/constants/theme";
@@ -102,7 +103,18 @@ export function MatchResultSheet({ visible, match, onClose, format = "league" }:
   });
 
   async function handleSave() {
-    for (const round of rounds) {
+    // Auto-mark rounds as completed if they have scores
+    const updatedRounds = rounds.map(round => {
+      const homeScore = parseInt(round.home_score);
+      const awayScore = parseInt(round.away_score);
+      
+      if (!isNaN(homeScore) && !isNaN(awayScore)) {
+        return { ...round, status: "completed" as MatchStatus };
+      }
+      return round;
+    });
+
+    for (const round of updatedRounds) {
       const homeScore = parseInt(round.home_score);
       const awayScore = parseInt(round.away_score);
 
@@ -124,7 +136,7 @@ export function MatchResultSheet({ visible, match, onClose, format = "league" }:
     try {
       await updateMatchRounds(
         match.id,
-        rounds.map((r) => ({
+        updatedRounds.map((r) => ({
           id: r.id,
           round_number: r.round_number,
           home_score: r.home_score ? parseInt(r.home_score) : null,
@@ -138,7 +150,7 @@ export function MatchResultSheet({ visible, match, onClose, format = "league" }:
       let totalHomeScore = 0;
       let totalAwayScore = 0;
 
-      for (const round of rounds) {
+      for (const round of updatedRounds) {
         const homeScore = parseInt(round.home_score) || 0;
         const awayScore = parseInt(round.away_score) || 0;
         
@@ -151,10 +163,16 @@ export function MatchResultSheet({ visible, match, onClose, format = "league" }:
         }
       }
 
+      // Auto-determine winner and status
       let winnerId: string | null = null;
       let isDraw = false;
+      let finalStatus = overallStatus;
 
-      if (overallStatus === "completed") {
+      // If all rounds are completed, mark match as completed
+      const allRoundsCompleted = updatedRounds.every(r => r.status === "completed");
+      if (allRoundsCompleted && updatedRounds.length > 0) {
+        finalStatus = "completed";
+        
         if (homeWins > awayWins) {
           winnerId = match.home_team_id;
         } else if (awayWins > homeWins) {
@@ -171,7 +189,7 @@ export function MatchResultSheet({ visible, match, onClose, format = "league" }:
         payload: {
           home_score: totalHomeScore,
           away_score: totalAwayScore,
-          status: overallStatus,
+          status: finalStatus,
           winner_team_id: winnerId,
           is_draw: isDraw,
         },
@@ -385,25 +403,17 @@ export function MatchResultSheet({ visible, match, onClose, format = "league" }:
             {/* Match Status */}
             <View style={styles.statusSection}>
               <Text style={styles.sectionLabel}>Match Status</Text>
-              <View style={styles.statusOptions}>
-                {(["scheduled", "ongoing", "completed", "cancelled"] as MatchStatus[]).map((s) => (
-                  <TouchableOpacity
-                    key={s}
-                    onPress={() => setOverallStatus(s)}
-                    style={[
-                      styles.statusOption,
-                      overallStatus === s && styles.statusOptionActive,
-                    ]}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={[
-                      styles.statusOptionText,
-                      overallStatus === s && styles.statusOptionTextActive,
-                    ]}>
-                      {s.charAt(0).toUpperCase() + s.slice(1)}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+              <View style={styles.statusPickerContainer}>
+                <Picker
+                  selectedValue={overallStatus}
+                  onValueChange={(value) => setOverallStatus(value as MatchStatus)}
+                  style={styles.statusPicker}
+                >
+                  <Picker.Item label="Scheduled" value="scheduled" />
+                  <Picker.Item label="Ongoing" value="ongoing" />
+                  <Picker.Item label="Completed" value="completed" />
+                  <Picker.Item label="Cancelled" value="cancelled" />
+                </Picker>
               </View>
             </View>
           </ScrollView>
@@ -646,30 +656,15 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
-  statusOptions: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: spacing.sm,
-  },
-  statusOption: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+  statusPickerContainer: {
+    backgroundColor: colors.inputFill,
     borderRadius: radius.lg,
-    backgroundColor: colors.base,
     borderWidth: 1,
     borderColor: colors.border,
+    overflow: "hidden",
   },
-  statusOptionActive: {
-    backgroundColor: colors.accentSoft,
-    borderColor: colors.accent,
-  },
-  statusOptionText: {
-    ...typography.bodyBold,
-    color: colors.textSecondary,
-    fontSize: 14,
-  },
-  statusOptionTextActive: {
-    color: colors.accent,
+  statusPicker: {
+    color: colors.textPrimary,
   },
   footer: {
     paddingHorizontal: spacing.xl,

@@ -114,7 +114,35 @@ export interface Team {
   player_count: number;
   colour_hex: string;
   group_id: string | null;
+  access_code: string;
   created_at: string;
+}
+
+export interface TeamCaptainSession {
+  id: string;
+  team_id: string;
+  member_id: string | null;
+  access_code: string;
+  device_id: string | null;
+  last_active_at: string;
+  created_at: string;
+}
+
+export interface CaptainTeamDetails {
+  team_id: string;
+  team_name: string;
+  team_color: string;
+  access_code: string;
+  event_id: string;
+  event_name: string;
+  event_sport: Sport;
+  event_format: EventFormat;
+  event_status: EventStatus;
+  captain_id: string | null;
+  captain_name: string | null;
+  team_members_count: number;
+  upcoming_matches_count: number;
+  completed_matches_count: number;
 }
 
 export interface Member {

@@ -476,22 +476,7 @@ export default function CreateEvent() {
                       hint="Number of rounds/games in each match (1-10)"
                     />
                   )}
-                />
-
-                <Controller
-                  control={control}
-                  name="rounds_per_match"
-                  render={({ field: { onChange, value } }) => (
-                    <Input
-                      label="Rounds per Match"
-                      value={String(value || "")}
-                      onChangeText={onChange}
-                      keyboardType="numeric"
-                      error={errors.rounds_per_match?.message}
-                      hint="How many rounds/games in each match (e.g., 3 for best of 3)"
-                    />
-                  )}
-                />
+/>
 
                 {/* Championship groups */}
                 {values.format === "championship" && (

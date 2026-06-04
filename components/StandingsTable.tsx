@@ -6,9 +6,10 @@ import { colors, spacing, typography, radius, shadows } from "@/constants/theme"
 interface StandingsTableProps {
   standings: StandingWithTeam[];
   compact?: boolean;
+  highlightTeamId?: string;
 }
 
-export function StandingsTable({ standings, compact = false }: StandingsTableProps) {
+export function StandingsTable({ standings, compact = false, highlightTeamId }: StandingsTableProps) {
   if (standings.length === 0) {
     return (
       <View style={[styles.emptyCard, shadows.card]}>

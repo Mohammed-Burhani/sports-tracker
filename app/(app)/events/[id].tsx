@@ -14,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { ChevronLeft, MapPin, Calendar, Users, Edit, Trash2, RefreshCw, Shuffle } from "lucide-react-native";
+import { LogOut, ShieldCheck } from "lucide-react-native";
 import { Ionicons } from '@expo/vector-icons';
 import { useEvent, useDeleteEvent } from "@/hooks/useEvents";
 import { useMatchesByEvent } from "@/hooks/useMatches";
@@ -39,6 +40,7 @@ import { StatusBadge } from "@/components/ui/StatusBadge";
 import { FormatBadge } from "@/components/ui/FormatBadge";
 import { MatchWithTeams, MemberWithTeam, Team, GroupWithTeams } from "@/types";
 import { showSuccessToast, showErrorToast } from "@/utils/toast";
+import { clearCaptainSession } from "@/lib/api/captainAuth";
 
 export default function EventDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -55,6 +57,11 @@ export default function EventDetail() {
   const [selectedGroup, setSelectedGroup] = useState<GroupWithTeams | undefined>();
   const [showTeamSheet, setShowTeamSheet] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+
+  // Captain mode detection
+  const searchParams = useLocalSearchParams<{ captain?: string; teamId?: string }>();
+  const isCaptainMode = searchParams.captain === 'true';
+  const captainTeamId = searchParams.teamId;
 
   const { data: event, isLoading: eventLoading, refetch } = useEvent(id);
   const { data: matches, isLoading: matchesLoading } = useMatchesByEvent(id);
@@ -128,8 +135,8 @@ export default function EventDetail() {
       "Regenerate Schedule",
       "This will delete all existing matches and create a new schedule. Continue?",
       [
-        { 
-          text: "Cancel", 
+        {
+          text: "Cancel",
           style: "cancel",
           onPress: () => console.log('Regenerate cancelled')
         },
@@ -168,7 +175,7 @@ export default function EventDetail() {
       console.error('No event found');
       return;
     }
-    
+
     console.log('Calling quickMarkResult.mutate');
     quickMarkResult.mutate({
       matchId: match.id,
@@ -254,7 +261,7 @@ export default function EventDetail() {
     if (!selectedTeamForAssign) return;
     const member = members.find(m => m.id === memberId);
     if (!member) return;
-    
+
     try {
       await updateMemberMutation.mutateAsync({
         id: member.id,
@@ -320,6 +327,11 @@ export default function EventDetail() {
   const unassignedMembersCount = members.filter(m => !m.team_id).length;
   const showAssignButton = members.length > 0 && (teams?.length ?? 0) > 0 && unassignedMembersCount > 0;
 
+  function handleCaptainSignOut() {
+    clearCaptainSession();
+    router.replace("/(auth)/captain-sign-in");
+  }
+
   return (
     <View style={styles.screen}>
       <SafeAreaView style={styles.safeArea} edges={["top"]}>
@@ -338,13 +350,28 @@ export default function EventDetail() {
           {/* Header */}
           <View style={styles.header}>
             <TouchableOpacity
-              onPress={() => router.back()}
+              onPress={() => isCaptainMode ? handleCaptainSignOut() : router.back()}
               style={styles.backButton}
               activeOpacity={0.7}
             >
-              <ChevronLeft size={20} color={colors.textSecondary} strokeWidth={2.5} />
-              <Text style={styles.backText}>Back</Text>
+              {isCaptainMode ? (
+                <>
+                  <LogOut size={20} color={colors.textSecondary} strokeWidth={2.5} />
+                  <Text style={styles.backText}>Sign Out</Text>
+                </>
+              ) : (
+                <>
+                  <ChevronLeft size={20} color={colors.textSecondary} strokeWidth={2.5} />
+                  <Text style={styles.backText}>Back</Text>
+                </>
+              )}
             </TouchableOpacity>
+            {isCaptainMode && (
+              <View style={styles.captainBadge}>
+                <ShieldCheck size={14} color={colors.accent} strokeWidth={2.5} />
+                <Text style={styles.captainBadgeText}>Captain Mode</Text>
+              </View>
+            )}
           </View>
 
           {/* Hero Card */}
@@ -422,39 +449,33 @@ export default function EventDetail() {
           )}
 
           {/* Action Buttons */}
-          <View style={styles.actionRow}>
-            <TouchableOpacity
-              style={[styles.actionButton, shadows.card]}
-              onPress={() => router.push(`/(app)/events/${id}/edit`)}
-              activeOpacity={0.8}
-            >
-              <Edit size={16} color={colors.textPrimary} strokeWidth={2.5} />
-              <Text style={styles.actionButtonText}>Edit</Text>
-            </TouchableOpacity>
+          {!isCaptainMode && (
+            <View style={styles.actionRow}>
+              <TouchableOpacity
+                style={[styles.actionButton, shadows.card]}
+                onPress={() => router.push(`/(app)/events/${id}/edit`)}
+                activeOpacity={0.8}
+              >
+                <Edit size={16} color={colors.textPrimary} strokeWidth={2.5} />
+                <Text style={styles.actionButtonText}>Edit</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[styles.actionButton, shadows.card]}
-              onPress={() => {
-                console.log('Regenerate button pressed!');
-                handleRegenerateSchedule();
-              }}
-              activeOpacity={0.8}
-              disabled={regenerateSchedule.isPending}
-            >
-              <RefreshCw size={16} color={colors.accent} strokeWidth={2.5} />
-              <Text style={[styles.actionButtonText, { color: colors.accent }]}>
-                {regenerateSchedule.isPending ? "..." : "Regenerate"}
-              </Text>
-            </TouchableOpacity>
-
-            {/* <TouchableOpacity
-              style={[styles.actionButton, styles.actionButtonDanger, shadows.card]}
-              onPress={handleDelete}
-              activeOpacity={0.8}
-            >
-              <Trash2 size={16} color={colors.danger} strokeWidth={2.5} />
-            </TouchableOpacity> */}
-          </View>
+              <TouchableOpacity
+                style={[styles.actionButton, shadows.card]}
+                onPress={() => {
+                  console.log('Regenerate button pressed!');
+                  handleRegenerateSchedule();
+                }}
+                activeOpacity={0.8}
+                disabled={regenerateSchedule.isPending}
+              >
+                <RefreshCw size={16} color={colors.accent} strokeWidth={2.5} />
+                <Text style={[styles.actionButtonText, { color: colors.accent }]}>
+                  {regenerateSchedule.isPending ? "..." : "Regenerate"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           {/* Teams Section */}
           {event.player_type === "team" && event.format !== "championship" && (
@@ -482,8 +503,9 @@ export default function EventDetail() {
                           shadows.card,
                           { backgroundColor: `${team.colour_hex}15`, borderColor: `${team.colour_hex}40` },
                         ]}
-                        onPress={() => handleTeamCardPress(team)}
-                        activeOpacity={0.7}
+                        onPress={() => !isCaptainMode && handleTeamCardPress(team)}
+                        activeOpacity={isCaptainMode ? 1 : 0.7}
+                        disabled={isCaptainMode}
                       >
                         <View style={[styles.teamDot, { backgroundColor: team.colour_hex }]} />
                         <View style={styles.teamCardContent}>
@@ -507,16 +529,18 @@ export default function EventDetail() {
             <View style={styles.section}>
               <View style={styles.membersSectionHeader}>
                 <Text style={styles.sectionTitle}>Groups ({groups.length})</Text>
-                <TouchableOpacity
-                  style={[styles.addMemberButton, shadows.card]}
-                  onPress={() => {
-                    setSelectedGroup(undefined);
-                    setShowGroupSheet(true);
-                  }}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.addMemberButtonText}>+ Add Group</Text>
-                </TouchableOpacity>
+                {!isCaptainMode && (
+                  <TouchableOpacity
+                    style={[styles.addMemberButton, shadows.card]}
+                    onPress={() => {
+                      setSelectedGroup(undefined);
+                      setShowGroupSheet(true);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.addMemberButtonText}>+ Add Group</Text>
+                  </TouchableOpacity>
+                )}
               </View>
 
               {groupsLoading ? (
@@ -533,11 +557,15 @@ export default function EventDetail() {
                     <GroupCard
                       key={group.id}
                       group={group}
-                      onPress={() => {
+                      onPress={!isCaptainMode ? () => {
                         setSelectedGroup(group);
                         setShowGroupSheet(true);
-                      }}
-                      onDelete={() => {
+                      } : undefined}
+                      onTeamPress={!isCaptainMode ? (team) => {
+                        setSelectedTeam(team);
+                        setShowTeamSheet(true);
+                      } : undefined}
+                      onDelete={!isCaptainMode ? () => {
                         Alert.alert(
                           'Delete Group',
                           `Remove ${group.name}? Teams will be unassigned.`,
@@ -552,7 +580,7 @@ export default function EventDetail() {
                             },
                           ]
                         );
-                      }}
+                      } : undefined}
                     />
                   ))}
                 </View>
@@ -561,85 +589,87 @@ export default function EventDetail() {
           )}
 
           {/* Members Section */}
-          <View style={styles.section}>
-            <View style={styles.membersSectionHeader}>
-              <Text style={styles.sectionTitle}>Members ({members.length})</Text>
-              <TouchableOpacity
-                style={[styles.addMemberButton, shadows.card]}
-                onPress={handleAddMember}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.addMemberButtonText}>+ Add Member</Text>
-              </TouchableOpacity>
-            </View>
-
-            {showAssignButton && (
-              <TouchableOpacity
-                style={[styles.assignButton, shadows.card]}
-                onPress={() => setShowAssignConfirm(true)}
-                activeOpacity={0.8}
-                disabled={assignMembersToTeamsMutation.isPending}
-              >
-                {assignMembersToTeamsMutation.isPending ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <>
-                    <Shuffle size={18} color="#fff" strokeWidth={2.5} />
-                    <Text style={styles.assignButtonText}>Randomly Assign to Teams</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            )}
-
-            <View style={styles.memberHint}>
-              <Ionicons name="information-circle-outline" size={16} color={colors.accent} className="mt-1" />
-              <Text style={styles.memberHintText}>
-                Tap a member to manually assign or reassign to a team
-              </Text>
-            </View>
-
-            {membersLoading ? (
-              <ActivityIndicator size="small" color={colors.primaryAccent} />
-            ) : members.length === 0 ? (
-              <View style={[styles.emptyCard, shadows.card]}>
-                <Users size={32} color={colors.textTertiary} strokeWidth={2} />
-                <Text style={styles.emptyText}>No members yet</Text>
+          {!isCaptainMode && (
+            <View style={styles.section}>
+              <View style={styles.membersSectionHeader}>
+                <Text style={styles.sectionTitle}>Members ({members.length})</Text>
                 <TouchableOpacity
-                  style={[styles.emptyActionButton, shadows.card]}
+                  style={[styles.addMemberButton, shadows.card]}
                   onPress={handleAddMember}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.emptyActionButtonText}>+ Add First Member</Text>
+                  <Text style={styles.addMemberButtonText}>+ Add Member</Text>
                 </TouchableOpacity>
               </View>
-            ) : (
-              <View style={styles.membersList}>
-                {members.map((member) => (
-                  <MemberCard
-                    key={member.id}
-                    member={member}
-                    onPress={() => handleMemberCardPress(member)}
-                    onDelete={() => {
-                      Alert.alert(
-                        'Delete Member',
-                        `Remove ${member.name} from this event?`,
-                        [
-                          { text: 'Cancel', style: 'cancel' },
-                          {
-                            text: 'Delete',
-                            style: 'destructive',
-                            onPress: async () => {
-                              await deleteMemberMutation.mutateAsync(member.id);
-                            },
-                          },
-                        ]
-                      );
-                    }}
-                  />
-                ))}
+
+              {showAssignButton && (
+                <TouchableOpacity
+                  style={[styles.assignButton, shadows.card]}
+                  onPress={() => setShowAssignConfirm(true)}
+                  activeOpacity={0.8}
+                  disabled={assignMembersToTeamsMutation.isPending}
+                >
+                  {assignMembersToTeamsMutation.isPending ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Shuffle size={18} color="#fff" strokeWidth={2.5} />
+                      <Text style={styles.assignButtonText}>Randomly Assign to Teams</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              )}
+
+              <View style={styles.memberHint}>
+                <Ionicons name="information-circle-outline" size={16} color={colors.accent} className="mt-1" />
+                <Text style={styles.memberHintText}>
+                  Tap a member to manually assign or reassign to a team
+                </Text>
               </View>
-            )}
-          </View>
+
+              {membersLoading ? (
+                <ActivityIndicator size="small" color={colors.primaryAccent} />
+              ) : members.length === 0 ? (
+                <View style={[styles.emptyCard, shadows.card]}>
+                  <Users size={32} color={colors.textTertiary} strokeWidth={2} />
+                  <Text style={styles.emptyText}>No members yet</Text>
+                  <TouchableOpacity
+                    style={[styles.emptyActionButton, shadows.card]}
+                    onPress={handleAddMember}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.emptyActionButtonText}>+ Add First Member</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <View style={styles.membersList}>
+                  {members.map((member) => (
+                    <MemberCard
+                      key={member.id}
+                      member={member}
+                      onPress={() => handleMemberCardPress(member)}
+                      onDelete={() => {
+                        Alert.alert(
+                          'Delete Member',
+                          `Remove ${member.name} from this event?`,
+                          [
+                            { text: 'Cancel', style: 'cancel' },
+                            {
+                              text: 'Delete',
+                              style: 'destructive',
+                              onPress: async () => {
+                                await deleteMemberMutation.mutateAsync(member.id);
+                              },
+                            },
+                          ]
+                        );
+                      }}
+                    />
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
 
           {/* Schedule Section */}
           <View style={styles.section}>
@@ -826,6 +856,9 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     marginBottom: spacing.md,
   },
   backButton: {
@@ -836,6 +869,22 @@ const styles = StyleSheet.create({
   backText: {
     ...typography.body,
     color: colors.textSecondary,
+  },
+  captainBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    backgroundColor: `${colors.accent}15`,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: `${colors.accent}30`,
+  },
+  captainBadgeText: {
+    ...typography.small,
+    color: colors.accent,
+    fontWeight: "600",
   },
   heroCard: {
     backgroundColor: colors.cardSurface,
