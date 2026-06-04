@@ -23,6 +23,19 @@ export function MatchCard({
   const isScheduled = match.status === "scheduled";
   const canMark = !isCompleted && !isTBD && (onMarkWin || onPress);
 
+  // Calculate rounds won from match_rounds
+  let homeRoundsWon = 0;
+  let awayRoundsWon = 0;
+  
+  if (match.match_rounds && match.match_rounds.length > 0) {
+    match.match_rounds.forEach((round) => {
+      if (round.status === "completed" && round.home_score !== null && round.away_score !== null) {
+        if (round.home_score > round.away_score) homeRoundsWon++;
+        else if (round.away_score > round.home_score) awayRoundsWon++;
+      }
+    });
+  }
+
   function handleMarkWin(teamId: string, e: any) {
     console.log('MatchCard handleMarkWin:', { teamId, matchId: match.id });
     e.stopPropagation();
@@ -95,7 +108,7 @@ export function MatchCard({
           </View>
           
           {/* Score or Actions */}
-          {isCompleted && match.home_score !== null && (
+          {isCompleted && (
             <View style={styles.scoreContainer}>
               <Text
                 style={[
@@ -103,11 +116,12 @@ export function MatchCard({
                   match.winner_team_id === match.home_team_id && styles.scoreWinner,
                 ]}
               >
-                {match.home_score}
+                {homeRoundsWon}
               </Text>
               {match.winner_team_id === match.home_team_id && (
                 <Trophy size={14} color={colors.success} strokeWidth={2.5} />
               )}
+              <Text style={styles.roundsLabel}>rounds</Text>
             </View>
           )}
           
@@ -167,7 +181,7 @@ export function MatchCard({
           </View>
           
           {/* Score or Actions */}
-          {isCompleted && match.away_score !== null && (
+          {isCompleted && (
             <View style={styles.scoreContainer}>
               <Text
                 style={[
@@ -175,11 +189,12 @@ export function MatchCard({
                   match.winner_team_id === match.away_team_id && styles.scoreWinner,
                 ]}
               >
-                {match.away_score}
+                {awayRoundsWon}
               </Text>
               {match.winner_team_id === match.away_team_id && (
                 <Trophy size={14} color={colors.success} strokeWidth={2.5} />
               )}
+              <Text style={styles.roundsLabel}>rounds</Text>
             </View>
           )}
           
@@ -342,6 +357,11 @@ const styles = StyleSheet.create({
   },
   scoreWinner: {
     color: colors.success,
+  },
+  roundsLabel: {
+    ...typography.small,
+    color: colors.textTertiary,
+    fontSize: 9,
   },
   scoreInputHint: {
     ...typography.small,

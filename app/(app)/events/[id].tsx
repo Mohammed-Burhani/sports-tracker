@@ -33,6 +33,7 @@ import { TeamAssignmentSheet } from "@/components/TeamAssignmentSheet";
 import { MemberAssignmentSheet } from "@/components/MemberAssignmentSheet";
 import { GroupCard } from "@/components/GroupCard";
 import { GroupSheet } from "@/components/GroupSheet";
+import { TeamSheet } from "@/components/TeamSheet";
 import { colors, spacing, typography, radius, shadows, sportThemes } from "@/constants/theme";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { FormatBadge } from "@/components/ui/FormatBadge";
@@ -52,6 +53,8 @@ export default function EventDetail() {
   const [selectedTeamForAssign, setSelectedTeamForAssign] = useState<Team | null>(null);
   const [showGroupSheet, setShowGroupSheet] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<GroupWithTeams | undefined>();
+  const [showTeamSheet, setShowTeamSheet] = useState(false);
+  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
 
   const { data: event, isLoading: eventLoading, refetch } = useEvent(id);
   const { data: matches, isLoading: matchesLoading } = useMatchesByEvent(id);
@@ -152,6 +155,9 @@ export default function EventDetail() {
   }
 
   function handleMatchPress(match: MatchWithTeams) {
+    console.log("Match pressed:", match.id);
+    console.log("Match participants:", match.match_participants);
+    console.log("Home team participants:", match.match_participants?.filter(p => p.team_id === match.home_team_id));
     setSelectedMatch(match);
     setShowMatchSheet(true);
   }
@@ -240,8 +246,8 @@ export default function EventDetail() {
   }
 
   function handleTeamCardPress(team: Team) {
-    setSelectedTeamForAssign(team);
-    setShowMemberAssignSheet(true);
+    setSelectedTeam(team);
+    setShowTeamSheet(true);
   }
 
   async function handleAssignToTeam(memberId: string) {
@@ -464,7 +470,7 @@ export default function EventDetail() {
                   <View style={styles.teamHint}>
                     <Ionicons name="information-circle-outline" size={16} color={colors.accent} className="mt-1" />
                     <Text style={styles.teamHintText}>
-                      Tap a team to assign unassigned members
+                      Tap a team to view members and assign roles
                     </Text>
                   </View>
                   <View style={styles.teamsGrid}>
@@ -786,6 +792,20 @@ export default function EventDetail() {
         onDelete={selectedGroup ? handleDeleteGroup : undefined}
         onAssignTeam={handleAssignTeamToGroup}
         onUnassignTeam={handleUnassignTeamFromGroup}
+      />
+
+      {/* Team Sheet */}
+      <TeamSheet
+        visible={showTeamSheet}
+        team={selectedTeam}
+        maxPlayers={event?.players_per_team || null}
+        onClose={() => {
+          setShowTeamSheet(false);
+          setSelectedTeam(null);
+        }}
+        onMembersUpdated={() => {
+          refetch();
+        }}
       />
     </View>
   );

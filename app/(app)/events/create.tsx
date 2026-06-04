@@ -33,6 +33,7 @@ const schema = z.object({
   max_participants: z.coerce.number().min(2).max(1000),
   num_teams: z.coerce.number().min(2).max(10).optional(),
   players_per_team: z.coerce.number().min(1).max(50).optional(),
+  rounds_per_match: z.coerce.number().min(1).max(10).optional(),
   groups_count: z.coerce.number().min(2).max(8).optional(),
   venue: z.string().optional(),
   start_date: z.string().min(4, "Start date required"),
@@ -83,6 +84,7 @@ export default function CreateEvent() {
       max_participants: 32,
       num_teams: 2,
       players_per_team: 11,
+      rounds_per_match: 1,
       venue: "",
       start_date: new Date().toISOString().split("T")[0],
       end_date: "",
@@ -190,6 +192,7 @@ export default function CreateEvent() {
         description: data.description || null,
         teams_count: data.player_type === "team" ? (data.num_teams || 2) : 0,
         players_per_team: data.player_type === "team" ? (data.players_per_team || 11) : null,
+        rounds_per_match: data.rounds_per_match || 1,
         courts_count: data.player_type === "team" ? courts.filter(c => c.name.trim()).length : 0,
         court_names: data.player_type === "team" ? courts.filter(c => c.name.trim()).map(c => c.name.trim()) : null,
         groups_count: data.format === "championship" ? (data.groups_count || 2) : null,
@@ -460,6 +463,36 @@ export default function CreateEvent() {
                   )}
                 />
 
+                <Controller
+                  control={control}
+                  name="rounds_per_match"
+                  render={({ field: { onChange, value } }) => (
+                    <Input
+                      label="Rounds per Match"
+                      value={String(value || "")}
+                      onChangeText={onChange}
+                      keyboardType="numeric"
+                      error={errors.rounds_per_match?.message}
+                      hint="Number of rounds/games in each match (1-10)"
+                    />
+                  )}
+                />
+
+                <Controller
+                  control={control}
+                  name="rounds_per_match"
+                  render={({ field: { onChange, value } }) => (
+                    <Input
+                      label="Rounds per Match"
+                      value={String(value || "")}
+                      onChangeText={onChange}
+                      keyboardType="numeric"
+                      error={errors.rounds_per_match?.message}
+                      hint="How many rounds/games in each match (e.g., 3 for best of 3)"
+                    />
+                  )}
+                />
+
                 {/* Championship groups */}
                 {values.format === "championship" && (
                   <Controller
@@ -663,6 +696,9 @@ export default function CreateEvent() {
                   : []),
                 ["Venue", values.venue || "—"],
                 ["Duration (hours)", values.duration_hours ? String(values.duration_hours) : "—"],
+                ...(values.player_type === "team" 
+                  ? [["Rounds per Match", String(values.rounds_per_match || 1)]] 
+                  : []),
                 ["Start Date", values.start_date],
                 ...(multiDay ? [["End Date", values.end_date || "—"]] : []),
                 ["Status", values.status === "draft" ? "Draft" : "Published"],

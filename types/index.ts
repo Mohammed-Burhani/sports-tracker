@@ -92,6 +92,7 @@ export interface Event {
   courts_count: number;
   teams_count: number;
   players_per_team: number | null;
+  rounds_per_match: number;
   created_at: string;
   updated_at: string;
 }
@@ -123,6 +124,7 @@ export interface Member {
   name: string;
   age: number;
   team_id: string | null;
+  role: "captain" | "player" | "substitute" | null;
   created_at: string;
 }
 
@@ -156,6 +158,28 @@ export interface Match {
   stage: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface MatchRound {
+  id: string;
+  match_id: string;
+  round_number: number;
+  home_score: number | null;
+  away_score: number | null;
+  winner_team_id: string | null;
+  is_draw: boolean;
+  status: MatchStatus;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MatchParticipant {
+  id: string;
+  match_id: string;
+  team_id: string;
+  member_id: string;
+  created_at: string;
 }
 
 export interface Standing {
@@ -225,6 +249,8 @@ export interface MatchWithTeams extends Match {
   away_team: Team | null;
   court: Court | null;
   event: Event;
+  match_rounds?: MatchRound[];
+  match_participants?: (MatchParticipant & { member: Member })[];
 }
 
 export interface StandingWithTeam extends Standing {

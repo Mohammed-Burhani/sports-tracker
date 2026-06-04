@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase";
-import { Match, MatchStatus, MatchWithTeams } from "@/types";
+import { Match, MatchStatus, MatchWithTeams, MatchRound } from "@/types";
 
 export interface MatchFilters {
   eventId?: string;
@@ -17,7 +17,9 @@ export async function getMatches(filters?: MatchFilters): Promise<MatchWithTeams
       home_team:teams!matches_home_team_id_fkey(*),
       away_team:teams!matches_away_team_id_fkey(*),
       court:courts(*),
-      event:events(*)
+      event:events(*),
+      match_rounds(*),
+      match_participants(*, member:members(*))
     `)
     .order("scheduled_date", { ascending: true })
     .order("round_number", { ascending: true })
@@ -42,7 +44,9 @@ export async function getMatchesByEvent(eventId: string): Promise<MatchWithTeams
       home_team:teams!matches_home_team_id_fkey(*),
       away_team:teams!matches_away_team_id_fkey(*),
       court:courts(*),
-      event:events(*)
+      event:events(*),
+      match_rounds(*),
+      match_participants(*, member:members(*))
     `)
     .eq("event_id", eventId)
     .order("round_number", { ascending: true })
@@ -89,6 +93,33 @@ export async function updateMatchResult(
 
   if (error) throw error;
   return data;
+}
+
+export async function updateMatchRounds(
+  matchId: string,
+  rounds: Array<{
+    id?: string;
+    round_number: number;
+    home_score: number | null;
+    away_score: number | null;
+    status: MatchStatus;
+  }>
+): Promise<void> {
+  for (const round of rounds) {
+    if (round.id) {
+      // Update existing round
+      const { error } = await supabase
+        .from("match_rounds")
+        .update({
+          home_score: round.home_score,
+          away_score: round.away_score,
+          status: round.status,
+        })
+        .eq("id", round.id);
+      
+      if (error) throw error;
+    }
+  }
 }
 
 export async function updateMatch(
