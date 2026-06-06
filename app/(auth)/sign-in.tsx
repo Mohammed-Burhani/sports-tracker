@@ -7,6 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
+  Image,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useForm, Controller } from "react-hook-form";
@@ -59,9 +60,11 @@ export default function SignIn() {
       >
         {/* Logo / Brand */}
         <View style={styles.brandContainer}>
-          <View style={[styles.logoBox, shadows.card]}>
-            <Text style={styles.logoEmoji}>🏆</Text>
-          </View>
+          <Image
+            source={require("@/assets/logo.png")}
+            style={styles.logo}
+            resizeMode="contain"
+          />
           <Text style={styles.brandTitle}>Sports Tracker</Text>
           <Text style={styles.brandSubtitle}>
             Manage events, sessions & participants
@@ -164,17 +167,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: spacing.huge,
   },
-  logoBox: {
-    width: 64,
-    height: 64,
-    borderRadius: radius.xl,
-    alignItems: "center",
-    justifyContent: "center",
+  logo: {
+    width: 120,
+    height: 120,
     marginBottom: spacing.lg,
-    backgroundColor: colors.accent,
-  },
-  logoEmoji: {
-    fontSize: 32,
   },
   brandTitle: {
     ...typography.hero,

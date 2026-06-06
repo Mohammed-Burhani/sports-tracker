@@ -6,6 +6,8 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Image,
+  StyleSheet,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useForm, Controller } from "react-hook-form";
@@ -14,6 +16,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { supabase } from "@/lib/supabase";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { colors, spacing } from "@/constants/theme";
 
 const schema = z.object({
   email: z.string().email("Enter a valid email"),
@@ -48,6 +51,12 @@ export default function ForgotPassword() {
       behavior={Platform.OS === "ios" ? "padding" : "height"}
       style={{ flex: 1, backgroundColor: "#0F172A", padding: 24, justifyContent: "center" }}
     >
+      <Image
+        source={require("@/assets/logo.png")}
+        style={styles.logo}
+        resizeMode="contain"
+      />
+      
       <TouchableOpacity className="mb-6" onPress={() => router.back()}>
         <Text className="text-indigo-400 text-base">← Back</Text>
       </TouchableOpacity>
@@ -82,3 +91,12 @@ export default function ForgotPassword() {
     </KeyboardAvoidingView>
   );
 }
+
+const styles = StyleSheet.create({
+  logo: {
+    width: 80,
+    height: 80,
+    alignSelf: "center",
+    marginBottom: spacing.xl,
+  },
+});

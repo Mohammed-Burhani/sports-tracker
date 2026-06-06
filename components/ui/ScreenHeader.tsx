@@ -1,10 +1,11 @@
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Image } from "react-native";
 import { colors, spacing, typography, radius, shadows } from "@/constants/theme";
 
 interface ScreenHeaderProps {
   greeting?: string;
   userName: string;
   emoji?: string;
+  showLogo?: boolean;
   onActionPress?: () => void;
   actionIcon?: React.ReactNode;
 }
@@ -13,11 +14,19 @@ export function ScreenHeader({
   greeting,
   userName,
   emoji,
+  showLogo = false,
   onActionPress,
   actionIcon,
 }: ScreenHeaderProps) {
   return (
     <View style={styles.container}>
+      {showLogo && (
+        <Image
+          source={require("@/assets/logo.png")}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+      )}
       <View style={styles.textContainer}>
         {greeting && (
           <Text style={styles.greeting}>
@@ -47,6 +56,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: spacing.xl,
+  },
+  logo: {
+    width: 40,
+    height: 40,
+    marginRight: spacing.md,
   },
   textContainer: {
     flex: 1,

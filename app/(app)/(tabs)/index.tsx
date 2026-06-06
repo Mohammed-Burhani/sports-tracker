@@ -48,6 +48,7 @@ export default function Dashboard() {
         >
           {/* Header */}
           <ScreenHeader
+            showLogo={true}
             greeting="Welcome back"
             userName="Dashboard"
             emoji="👋"

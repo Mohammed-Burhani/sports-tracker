@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -87,16 +88,11 @@ export default function CaptainSignIn() {
         >
           {/* Header */}
           <View style={styles.header}>
-            <View style={[styles.iconContainer, shadows.cardElevated]}>
-              <LinearGradient
-                colors={[colors.accent, `${colors.accent}CC`]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.iconGradient}
-              >
-                <ShieldCheck size={32} color="#fff" strokeWidth={2.5} />
-              </LinearGradient>
-            </View>
+            <Image
+              source={require("@/assets/logo.png")}
+              style={styles.logo}
+              resizeMode="contain"
+            />
 
             <Text style={styles.title}>Captain Access</Text>
             <Text style={styles.subtitle}>
@@ -188,18 +184,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: spacing.xxxl,
   },
-  iconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: radius.xxl,
+  logo: {
+    width: 120,
+    height: 120,
     marginBottom: spacing.lg,
-    overflow: "hidden",
-  },
-  iconGradient: {
-    width: "100%",
-    height: "100%",
-    alignItems: "center",
-    justifyContent: "center",
   },
   title: {
     ...typography.hero,

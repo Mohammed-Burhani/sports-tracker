@@ -5,6 +5,7 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -120,7 +121,14 @@ export default function SettingsTab() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.pageTitle}>Settings</Text>
+          <View style={styles.titleContainer}>
+            <Image
+              source={require("@/assets/logo.png")}
+              style={styles.logo}
+              resizeMode="contain"
+            />
+            <Text style={styles.pageTitle}>Settings</Text>
+          </View>
 
           {/* User Info */}
           <View style={[styles.userCard, shadows.card]}>
@@ -285,10 +293,19 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: spacing.lg,
   },
+  titleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    marginBottom: spacing.xl,
+  },
+  logo: {
+    width: 36,
+    height: 36,
+  },
   pageTitle: {
     ...typography.title,
     color: colors.textPrimary,
-    marginBottom: spacing.xl,
   },
   userCard: {
     backgroundColor: colors.cardSurface,
