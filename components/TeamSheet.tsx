@@ -8,11 +8,14 @@ import {
   Pressable,
   ScrollView,
   ActivityIndicator,
+  TextInput,
+  Alert,
 } from "react-native";
-import { X, User, ShieldCheck, Users as UsersIcon, Copy, Check } from "lucide-react-native";
+import { X, User, ShieldCheck, Users as UsersIcon, Copy, Check, Edit2, Save } from "lucide-react-native";
 import { colors, spacing, typography, radius } from "@/constants/theme";
 import { Team, Member } from "@/types";
 import { getMembersByTeam, updateMemberRole } from "@/lib/api/members";
+import { updateTeam } from "@/lib/api/teams";
 import { showSuccessToast, showErrorToast } from "@/utils/toast";
 import * as Clipboard from "expo-clipboard";
 
@@ -22,6 +25,7 @@ interface TeamSheetProps {
   maxPlayers: number | null;
   onClose: () => void;
   onMembersUpdated: () => void;
+  onTeamUpdated?: () => void;
 }
 
 export function TeamSheet({
@@ -30,15 +34,21 @@ export function TeamSheet({
   maxPlayers,
   onClose,
   onMembersUpdated,
+  onTeamUpdated,
 }: TeamSheetProps) {
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(false);
   const [updating, setUpdating] = useState<string | null>(null);
   const [codeCopied, setCodeCopied] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState("");
+  const [savingName, setSavingName] = useState(false);
 
   useEffect(() => {
     if (visible && team) {
       loadMembers();
+      setEditedName(team.name);
+      setIsEditingName(false);
     }
   }, [visible, team]);
 
@@ -95,6 +105,39 @@ export function TeamSheet({
     setTimeout(() => setCodeCopied(false), 2000);
   }
 
+  async function handleSaveName() {
+    if (!team || !editedName.trim()) {
+      showErrorToast("Team name cannot be empty");
+      return;
+    }
+
+    if (editedName.trim() === team.name) {
+      setIsEditingName(false);
+      return;
+    }
+
+    setSavingName(true);
+    try {
+      await updateTeam(team.id, { name: editedName.trim() });
+      setIsEditingName(false);
+      showSuccessToast("Team name updated");
+      if (onTeamUpdated) {
+        onTeamUpdated();
+      }
+    } catch (error: any) {
+      showErrorToast(error.message || "Failed to update team name");
+      setEditedName(team.name);
+    } finally {
+      setSavingName(false);
+    }
+  }
+
+  function handleCancelEdit() {
+    if (!team) return;
+    setEditedName(team.name);
+    setIsEditingName(false);
+  }
+
   if (!team) return null;
 
   const sortedMembers = [...members].sort((a, b) => {
@@ -129,7 +172,52 @@ export function TeamSheet({
                     { backgroundColor: team.colour_hex },
                   ]}
                 />
-                <Text style={styles.headerTitle}>{team.name}</Text>
+                {isEditingName ? (
+                  <View style={styles.nameEditContainer}>
+                    <TextInput
+                      style={styles.nameInput}
+                      value={editedName}
+                      onChangeText={setEditedName}
+                      autoFocus
+                      selectTextOnFocus
+                      placeholder="Team name"
+                      placeholderTextColor={colors.textTertiary}
+                    />
+                    <View style={styles.nameEditButtons}>
+                      <TouchableOpacity
+                        onPress={handleSaveName}
+                        style={styles.nameEditButton}
+                        disabled={savingName}
+                        activeOpacity={0.7}
+                      >
+                        {savingName ? (
+                          <ActivityIndicator size="small" color={colors.accent} />
+                        ) : (
+                          <Save size={16} color={colors.accent} strokeWidth={2.5} />
+                        )}
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={handleCancelEdit}
+                        style={styles.nameEditButton}
+                        disabled={savingName}
+                        activeOpacity={0.7}
+                      >
+                        <X size={16} color={colors.textSecondary} strokeWidth={2.5} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ) : (
+                  <>
+                    <Text style={styles.headerTitle}>{team.name}</Text>
+                    <TouchableOpacity
+                      onPress={() => setIsEditingName(true)}
+                      style={styles.editNameButton}
+                      activeOpacity={0.7}
+                    >
+                      <Edit2 size={16} color={colors.textSecondary} strokeWidth={2.5} />
+                    </TouchableOpacity>
+                  </>
+                )}
               </View>
               <Text style={styles.headerMeta}>
                 {playersCount}
@@ -403,6 +491,48 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
+    flex: 1,
+  },
+  nameEditContainer: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  nameInput: {
+    flex: 1,
+    ...typography.heading,
+    color: colors.textPrimary,
+    backgroundColor: colors.inputFill,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    borderRadius: radius.md,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  nameEditButtons: {
+    flexDirection: "row",
+    gap: spacing.xs,
+  },
+  nameEditButton: {
+    width: 32,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.cardSurface,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  editNameButton: {
+    width: 28,
+    height: 28,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: radius.sm,
+    backgroundColor: colors.base,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   teamIndicator: {
     width: 4,

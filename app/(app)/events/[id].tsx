@@ -491,7 +491,7 @@ export default function EventDetail() {
                   <View style={styles.teamHint}>
                     <Ionicons name="information-circle-outline" size={16} color={colors.accent} className="mt-1" />
                     <Text style={styles.teamHintText}>
-                      Tap a team to view members and assign roles
+                      Tap a team to view members and assign roles edit team name & details
                     </Text>
                   </View>
                   <View style={styles.teamsGrid}>
@@ -835,6 +835,9 @@ export default function EventDetail() {
           setSelectedTeam(null);
         }}
         onMembersUpdated={() => {
+          refetch();
+        }}
+        onTeamUpdated={() => {
           refetch();
         }}
       />
