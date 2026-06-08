@@ -46,13 +46,15 @@ export function MatchResultSheet({ visible, match, onClose, format = "league", c
       
       if (match.match_rounds && match.match_rounds.length > 0) {
         setRounds(
-          match.match_rounds.map((r: MatchRound) => ({
-            id: r.id,
-            round_number: r.round_number,
-            home_score: r.home_score?.toString() || "",
-            away_score: r.away_score?.toString() || "",
-            status: r.status,
-          }))
+          match.match_rounds
+            .sort((a, b) => a.round_number - b.round_number)
+            .map((r: MatchRound) => ({
+              id: r.id,
+              round_number: r.round_number,
+              home_score: r.home_score?.toString() || "",
+              away_score: r.away_score?.toString() || "",
+              status: r.status,
+            }))
         );
       } else {
         setRounds(
