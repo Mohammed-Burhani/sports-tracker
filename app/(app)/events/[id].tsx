@@ -648,21 +648,8 @@ export default function EventDetail() {
                       key={member.id}
                       member={member}
                       onPress={() => handleMemberCardPress(member)}
-                      onDelete={() => {
-                        Alert.alert(
-                          'Delete Member',
-                          `Remove ${member.name} from this event?`,
-                          [
-                            { text: 'Cancel', style: 'cancel' },
-                            {
-                              text: 'Delete',
-                              style: 'destructive',
-                              onPress: async () => {
-                                await deleteMemberMutation.mutateAsync(member.id);
-                              },
-                            },
-                          ]
-                        );
+                      onDelete={async () => {
+                        await deleteMemberMutation.mutateAsync(member.id);
                       }}
                     />
                   ))}

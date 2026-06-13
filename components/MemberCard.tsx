@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radius, typography, shadows } from '@/constants/theme';
 import type { MemberWithTeam } from '@/types';
@@ -8,9 +8,29 @@ interface MemberCardProps {
   member: MemberWithTeam;
   onPress: () => void;
   onDelete: () => void;
+  showDeleteConfirmation?: boolean;
 }
 
-export function MemberCard({ member, onPress, onDelete }: MemberCardProps) {
+export function MemberCard({ member, onPress, onDelete, showDeleteConfirmation = true }: MemberCardProps) {
+  const handleDeletePress = () => {
+    if (showDeleteConfirmation) {
+      Alert.alert(
+        'Delete Member',
+        `Are you sure you want to remove ${member.name} from this event? This action cannot be undone.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: onDelete,
+          },
+        ]
+      );
+    } else {
+      onDelete();
+    }
+  };
+
   return (
     <TouchableOpacity
       style={styles.container}
@@ -41,7 +61,7 @@ export function MemberCard({ member, onPress, onDelete }: MemberCardProps) {
           )}
 
           <TouchableOpacity
-            onPress={onDelete}
+            onPress={handleDeletePress}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             style={styles.deleteButton}
           >

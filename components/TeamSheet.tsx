@@ -83,9 +83,33 @@ export function TeamSheet({
       }
     }
 
-    setUpdating(member.id);
+    // Show confirmation when removing member from team (setting role to null)
+    if (newRole === null && member.role !== null) {
+      Alert.alert(
+        "Remove from Team",
+        `Remove ${member.name} from ${team.name}? They will no longer be assigned to this team.`,
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Remove",
+            style: "destructive",
+            onPress: async () => {
+              await performRoleChange(member.id, newRole);
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    // For other role changes, proceed without confirmation
+    await performRoleChange(member.id, newRole);
+  }
+
+  async function performRoleChange(memberId: string, newRole: "captain" | "player" | "substitute" | null) {
+    setUpdating(memberId);
     try {
-      await updateMemberRole(member.id, newRole);
+      await updateMemberRole(memberId, newRole);
       await loadMembers();
       onMembersUpdated();
       showSuccessToast("Role updated");
